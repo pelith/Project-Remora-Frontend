@@ -1,0 +1,248 @@
+---
+name: frontend structure
+description: Guide for build project structure
+globs: **/*.js, **/*.ts, **/*.jsx, **/*.tsx
+tags:
+  - React
+---
+
+# React Feature Module Architecture Guidelines
+
+## Feature Module Classification
+
+### Module Splitting Criteria
+
+Choose module boundaries based on these principles (in order of priority):
+
+1. **Figma Design Boundaries**
+
+   - Separate modules for distinct design sections
+   - Each Figma page/section = potential module
+   - Maintain design-code alignment
+
+2. **Major Functional Boundaries**
+
+   - Independent business logic domains
+   - Separate user workflows or use cases
+   - Different data models or API endpoints
+
+3. **Page-Level Separation** (Most Common)
+   - Route-based module division
+   - Each major page = separate module
+   - **Warning**: Avoid over-nesting within page modules
+
+### Module Granularity Guidelines
+
+**✅ Good Module Examples:**
+
+- `user-profile` - User profile management
+- `product-catalog` - Product listing and filtering
+- `checkout-flow` - Multi-step checkout process
+- `dashboard-analytics` - Analytics dashboard
+- `dashboard-settings` - Settings management
+
+**❌ Avoid Over-nesting:**
+
+```
+❌ dashboard/
+   ├── analytics/
+   ├── reports/
+   ├── settings/
+   └── user-management/
+```
+
+**✅ Better Approach:**
+
+```
+✅ dashboard-analytics/
+✅ dashboard-reports/
+✅ dashboard-settings/
+✅ dashboard-user-management/
+```
+
+### Decision Tree for Module Creation
+
+```
+Is this a distinct Figma design section?
+├── Yes → Create separate module
+└── No → Is this a major functional domain?
+    ├── Yes → Create separate module
+    └── No → Is this a separate route/page?
+        ├── Yes → Check complexity
+        │   ├── High complexity → Create separate module
+        │   └── Low complexity → Add to existing module
+        └── No → Keep in current module
+```
+
+### Module Naming Conventions
+
+- Use camelCase: `userProfile`, `productCatalog`
+- Include domain prefix for related modules: `dashboardAnalytics`, `dashboardSettings`
+- Be specific and descriptive: `checkoutFlow` not `checkout`
+- Avoid generic names within feature modules (use specific domains instead)
+- **Exception**: Project-level `common` module for shared cross-module resources
+
+## Naming Conventions
+
+### Files
+
+- **Components**: PascalCase - `UserProfile.tsx`
+- **Modules**: camelCase - `userProfile/`
+- **Constants**:
+  - Filename: camelCase - `apiEndpoints.ts`
+  - Parameters: UPPERCASE - `const API_BASE_URL = 'https://api.example.com'`
+- **Pages**: PascalCase + Page suffix - `UserProfilePage.tsx`
+- **Containers**: PascalCase + Container suffix - `UserProfileContainer.tsx`
+- **Form Items**: camelCase + `.form` - `userInput.form.tsx`
+- **Schemas**: camelCase + `.schema` - `userProfile.schema.ts`
+- **Hooks**: camelCase with `use` prefix - `useUserProfile.ts`
+- **Utils**: camelCase - `formatCurrency.ts`
+- **Context**: PascalCase + Context suffix - `UserContext.tsx`
+- **Store (Jotai atoms)**: camelCase + Atom suffix - `userProfileAtom.ts`
+- **Types/Interfaces**: PascalCase + `.types` - `UserProfile.types.ts`
+- **API functions**: camelCase + `.api` - `getUserProfile.api.ts`
+- **Test files**: Same as original + `.test` or `.spec` - `UserProfile.test.tsx`
+
+### Folders
+
+- **All folders**: camelCase - `userProfile/`, `formItems/`
+
+## Common Module
+
+The `common` module is a special project-level module containing shared resources used across multiple feature modules:
+
+### Common Module Structure
+
+```
+common/
+├── components/          # Reusable UI components
+├── hooks/              # Shared custom hooks
+├── utils/              # Cross-module utility functions
+├── constants/          # Global constants and configurations
+├── types/              # Shared TypeScript types and interfaces
+├── api/                # Common API utilities and configurations
+├── assets/             # Global assets (icons, fonts, etc.)
+└── context/            # Global context providers
+```
+
+### Usage Guidelines
+
+- **Purpose**: Only for resources genuinely used by multiple feature modules
+- **Avoid**: Feature-specific logic or components
+- **Migration**: Move items from `common` to specific modules when usage becomes module-specific
+- **Documentation**: Clearly document the purpose and usage of common resources
+
+## Module Structure
+
+Each feature module should contain the following directories:
+
+```
+feature-module/
+├── api/
+├── components/
+│   └── form-items/
+├── pages/
+│   ├── layout/
+│   └── page/
+├── hooks/
+├── utils/
+├── constants/
+├── assets/
+├── context/
+├── container/
+└── store/
+```
+
+## API Guidelines
+
+- Define clear request/response schemas
+- Use explicit cache keys for useQuery/useSWR (include wallet address, account JWT, account ID)
+- Avoid exporting fetcher functions unless necessary
+- Manage error codes for i18n and backend response validation
+
+## Components Rules
+
+- **State restriction**: Only use `useState` and `useReducer` - all other state must come from props
+- **Context usage exceptions**:
+  - Form items can use context (form-level components)
+  - Compound/composition components can use internal context for component communication
+- Use compound/composition component patterns for cross-component requirements
+- Move complex logic to containers
+- Create separate repos for large components (300-500+ lines)
+- **Required for each component**:
+  - Container should not be implement stories.
+  - Storybook stories
+  - State validation
+  - README documentation (optional)
+
+## Pages Guidelines
+
+- Naming: `XXXXPage.tsx`
+- No state operations except preload data scenarios
+- Use route context or protected routes for redirects
+- Layouts must be style-only (no context mixing)
+- Handle active routing from container/component, not layout/page
+
+## Hooks
+
+- Custom hooks for reusable logic
+- Exclude API hooks and store hooks (place in respective folders)
+
+## Utils Requirements
+
+- Pure functions only with consistent return types
+- Support function overloading with same return type
+- Include comprehensive tests
+- Use JSDoc documentation
+- **No async methods allowed**
+
+## Constants
+
+- Module-specific constants, options, labels
+- Specification parameters and configuration values
+
+## Assets
+
+- Module-specific images, backgrounds, and media files
+- Improves code splitting and responsibility clarity
+- **Structure guidelines**:
+  ```
+  assets/
+  ├── images/
+  │   ├── icons/
+  │   ├── backgrounds/
+  │   └── illustrations/
+  ├── videos/
+  ├── fonts/
+  └── documents/
+  ```
+- Keep assets close to their usage context
+- Use appropriate file formats for web optimization
+
+## Context
+
+- Manage context creation and state setup only
+- No logic operations (use Jotai store or reducers instead)
+- Export context providers and hooks
+
+## Container
+
+- **Purpose**: Data distribution and pure component composition
+- **No styling** - logic and API response data only
+- Combines pure components using compound/composition patterns
+- Prevents render performance issues
+
+## Store (Jotai)
+
+- For cross-component state management within feature modules
+- Integrate with context when appropriate
+- Use for horizontal component communication
+- Follow Jotai atom patterns for state release
+
+## Code Quality Standards
+
+- Prefer composition over inheritance
+- Maintain clear separation of concerns
+- Optimize for performance and maintainability
+- Use TypeScript for type safety
+- Follow consistent naming conventions
