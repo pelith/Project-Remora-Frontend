@@ -1,8 +1,10 @@
 import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
 import { useCallback, useMemo, useState } from 'react';
 import { useController, useForm } from 'react-hook-form';
-import { formatEther, formatUnits, parseUnits } from 'viem';
+import { formatUnits, parseUnits } from 'viem';
 import { useBalance, useReadContract, useWriteContract } from 'wagmi';
+import { BigNumber, parseToBigNumber } from '@/modules/common/utils/bignumber';
+import formatValueToStandardDisplay from '@/modules/common/utils/formatValueToStandardDisplay';
 import ConnectWalletView from '../components/connect-wallet-view';
 import { ERC20_ABI } from '../constants/erc20-abi';
 import { USDC_TOKEN } from '../constants/token-metadata';
@@ -43,12 +45,16 @@ export default function ConnectWalletContainer() {
 		rules: {
 			required: 'Amount is required.',
 			validate: (value) => {
-				const parsed = Number(value);
-				if (Number.isNaN(parsed)) {
+				const parsed = parseToBigNumber(value, new BigNumber(Number.NaN));
+				if (!parsed.isFinite() || parsed.isNaN()) {
 					return 'Amount must be a number.';
 				}
-				if (parsed <= 0) {
+				if (parsed.lte(0)) {
 					return 'Amount must be greater than 0.';
+				}
+				const decimalPlaces = parsed.decimalPlaces();
+				if (decimalPlaces !== null && decimalPlaces > USDC_TOKEN.decimals) {
+					return `Amount must have ${USDC_TOKEN.decimals} decimals or less.`;
 				}
 				return true;
 			},
@@ -82,19 +88,33 @@ export default function ConnectWalletContainer() {
 
 	const ethBalanceRaw = ethBalanceData?.value;
 
-	const ethBalance = useMemo(() => {
+	const ethBalanceFormatted = useMemo(() => {
 		if (!ethBalanceRaw) {
 			return undefined;
 		}
-		return formatEther(ethBalanceRaw);
+		return formatUnits(ethBalanceRaw, 18);
 	}, [ethBalanceRaw]);
 
-	const usdcBalance = useMemo(() => {
+	const usdcBalanceFormatted = useMemo(() => {
 		if (usdcBalanceRaw === undefined) {
 			return undefined;
 		}
 		return formatUnits(usdcBalanceRaw, USDC_TOKEN.decimals);
 	}, [usdcBalanceRaw]);
+
+	const ethBalanceDisplay = useMemo(() => {
+		if (!ethBalanceFormatted) {
+			return undefined;
+		}
+		return formatValueToStandardDisplay(ethBalanceFormatted);
+	}, [ethBalanceFormatted]);
+
+	const usdcBalanceDisplay = useMemo(() => {
+		if (!usdcBalanceFormatted) {
+			return undefined;
+		}
+		return formatValueToStandardDisplay(usdcBalanceFormatted);
+	}, [usdcBalanceFormatted]);
 
 	const onSubmit = useMemo(() => {
 		return handleSubmit(async ({ amount, recipient }) => {
@@ -103,7 +123,11 @@ export default function ConnectWalletContainer() {
 			}
 			setIsSubmitting(true);
 			try {
-				const amountRaw = parseUnits(amount, USDC_TOKEN.decimals);
+				const amountBn = parseToBigNumber(amount, new BigNumber(Number.NaN));
+				const amountRaw = parseUnits(
+					amountBn.toFixed(USDC_TOKEN.decimals, BigNumber.ROUND_DOWN),
+					USDC_TOKEN.decimals,
+				);
 				await writeContractAsync({
 					address: USDC_TOKEN.address,
 					abi: ERC20_ABI,
@@ -119,8 +143,8 @@ export default function ConnectWalletContainer() {
 	return (
 		<ConnectWalletView
 			address={address}
-			ethBalance={ethBalance}
-			usdcBalance={usdcBalance}
+			ethBalance={ethBalanceDisplay}
+			usdcBalance={usdcBalanceDisplay}
 			isConnected={isConnected}
 			isSubmitting={isSubmitting || isWritePending}
 			recipient={recipientField.value}

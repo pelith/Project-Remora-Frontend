@@ -8,6 +8,20 @@ This document outlines the available specialized agents (skills) that can be inv
 2.  **Suggest an Agent**: If you know which agent is best for the task, you can suggest using it (e.g., "Using `zod-expert`, add validation to this schema"). The main agent will delegate tasks appropriately.
 3.  **Review Changes**: Agents will propose code changes. Always review them before accepting.
 
+## Best Practices for Prompting
+
+Based on successful interactions, incorporating the following practices into your prompts leads to better outcomes.
+
+1.  **Request a Task Breakdown**: Asking for a plan (e.g., "write down `Task.md`") before work begins helps structure the process. It ensures the agent understands the scope and provides you with a clear roadmap for tracking progress.
+
+2.  **Define Clear, Atomic Features**: Instead of a single broad goal, list the specific features required (e.g., "display address," "display balance," "implement send form"). This removes ambiguity and ensures all requirements are met.
+
+3.  **Specify the Technology Stack**: Explicitly state the libraries to be used (e.g., "use RainbowKit and Wagmi," "integrate with React Hook Form"). This prevents the agent from making incorrect assumptions and ensures it adheres to your project's conventions.
+
+4.  **Provide Essential Data Upfront**: Include critical information like contract addresses or API endpoints directly in the prompt. This avoids interruptions and allows the agent to work more efficiently.
+
+5.  **Ask for a Step-by-Step Workflow**: Requesting the agent to stop for review after completing a step gives you control over the process. This iterative approach allows for feedback and course correction, ensuring the final result aligns with your expectations.
+
 ---
 
 ## Available Agents
