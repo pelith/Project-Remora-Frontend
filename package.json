@@ -10,7 +10,8 @@
     "format": "biome format --write ./src",
     "format:check": "biome format ./src",
     "lint": "biome lint",
-    "check": "biome check"
+    "check": "biome check",
+    "generate-routes": "tsr generate"
   },
   "dependencies": {
     "@reown/appkit": "^1.8.17",
@@ -30,6 +31,7 @@
     "p-queue": "^9.1.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-hook-form": "^7.71.1",
     "tailwind-merge": "^3.0.2",
     "tailwindcss": "^4.0.6",
     "tw-animate-css": "^1.3.6",
