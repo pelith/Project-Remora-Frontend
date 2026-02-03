@@ -9,8 +9,8 @@ import { routeTree } from './routeTree.gen';
 
 import './styles.css';
 import { WagmiProvider } from 'wagmi';
-import { ThemeProvider } from './common/layouts/theme-provider.tsx';
-import { AtomStoreProvider } from './common/store/store.tsx';
+import { ThemeProvider } from './modules/common/layouts/theme-provider.tsx';
+import { AtomStoreProvider } from './modules/common/store/store.tsx';
 import reportWebVitals from './reportWebVitals.ts';
 import { config } from './wagmi.ts';
 
