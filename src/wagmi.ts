@@ -27,13 +27,14 @@ createAppKit({
 	metadata: {
 		name: 'Project Remora',
 		description: 'Project Remora',
-		url: '',
-		icons: [''],
+		url: 'https://remora-stable.vercel.app',
+		icons: ['https://remora-stable.vercel.app/favicon.ico'],
 	},
 	features: {
 		email: false,
 		socials: false,
 	},
+	enableNetworkSwitch: false,
 });
 declare module 'wagmi' {
 	interface Register {
