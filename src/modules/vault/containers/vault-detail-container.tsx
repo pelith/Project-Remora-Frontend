@@ -104,7 +104,7 @@ export default function VaultDetailContainer({
 	const currentPrice = getMockPrice(vault.poolKey.token0.symbol);
 
 	return (
-		<Container className='py-4 space-y-6 animate-in fade-in duration-500'>
+		<Container className='pt-4 pb-16 space-y-6 animate-in fade-in duration-500'>
 			{/* Combined Header & KPI Section */}
 			<div className='flex flex-col md:flex-row md:items-end justify-between gap-6 pb-4 border-b border-border-default/40'>
 				{/* Left: Identity & Status */}
