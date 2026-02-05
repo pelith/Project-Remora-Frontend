@@ -63,9 +63,9 @@ function createOverlayPlugin(
 					return;
 				}
 
-				// Use label value instead of index for getPixelForValue
-				const leftX = xAxis.getPixelForValue(chartData.labels[lowerIndex]);
-				const rightX = xAxis.getPixelForValue(chartData.labels[upperIndex]);
+				// Use index for getPixelForValue (Chart.js category scale accepts index)
+				const leftX = xAxis.getPixelForValue(lowerIndex);
+				const rightX = xAxis.getPixelForValue(upperIndex);
 				const width = rightX - leftX;
 
 				if (width <= 0) {
@@ -133,8 +133,8 @@ function createOverlayPlugin(
 			);
 
 			if (allowedLowerIndex !== -1 && allowedUpperIndex !== -1) {
-				const leftX = xAxis.getPixelForValue(chartData.labels[allowedLowerIndex]);
-				const rightX = xAxis.getPixelForValue(chartData.labels[allowedUpperIndex]);
+				const leftX = xAxis.getPixelForValue(allowedLowerIndex);
+				const rightX = xAxis.getPixelForValue(allowedUpperIndex);
 
 				ctx.save();
 
@@ -188,7 +188,7 @@ function createOverlayPlugin(
 			}
 
 			// Draw Current Price Line
-			const currentX = xAxis.getPixelForValue(chartData.labels[chartData.currentPriceIndex]);
+			const currentX = xAxis.getPixelForValue(chartData.currentPriceIndex);
 			const currentPrice =
 				chartData.rawLabels[chartData.currentPriceIndex];
 			const inRange = chartData.agentPositions.some(
@@ -235,7 +235,16 @@ export const LiquidityDistributionChart = ({
 	vault,
 }: LiquidityDistributionChartProps) => {
 	const chartData = useMemo(
-		() => generateLiquidityChartData(vault),
+		() => {
+			const data = generateLiquidityChartData(vault);
+			// Debug: Log positions data
+			if (data.agentPositions.length === 0) {
+				console.warn('No agent positions found in vault:', vault.positions);
+			} else {
+				console.log('Agent positions for chart:', data.agentPositions);
+			}
+			return data;
+		},
 		[vault],
 	);
 
