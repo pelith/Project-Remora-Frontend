@@ -3,7 +3,11 @@ import { useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useAppKitAccount } from '@reown/appkit/react';
 import { vaultsAtom } from '../stores/vault.store';
-import { EmptyState, VaultCard } from '../components';
+import {
+	EmptyState,
+	VaultCard,
+	CreateVaultSheet,
+} from '../components';
 import { Button } from '@/modules/common/components/ui/button';
 import { Container } from '@/modules/common/components/layout/container';
 import { Plus, Wallet } from 'lucide-react';
@@ -68,7 +72,10 @@ export default function VaultListContainer() {
 				</div>
 			)}
 
-			{/* TODO: CreateVaultSheet will be added later */}
+			<CreateVaultSheet
+				open={isCreateOpen}
+				onOpenChange={setIsCreateOpen}
+			/>
 		</Container>
 	);
 }
