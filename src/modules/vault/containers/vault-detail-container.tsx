@@ -25,7 +25,7 @@ import {
 	AgentControlDialog,
 	DepositSheet,
 	FullExitDialog,
-	LiquidityChart,
+	LiquidityDistributionChart,
 	SettingsSheet,
 	WithdrawSheet,
 } from '../components';
@@ -196,7 +196,7 @@ export default function VaultDetailContainer({
 			<div className='grid grid-cols-1 lg:grid-cols-12 gap-4'>
 				{/* Main Content Area - Left Side */}
 				<div className='lg:col-span-8 space-y-4'>
-					<LiquidityChart vault={vault} />
+					<LiquidityDistributionChart vault={vault} />
 				</div>
 
 				{/* Sidebar - Right Side */}

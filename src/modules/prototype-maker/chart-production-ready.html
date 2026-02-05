@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent LP Vault - Liquidity Distribution Chart</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: hsl(0 0% 7%);
+            color: hsl(0 0% 95%);
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .chart-section {
+            background: hsl(0 0% 10%);
+            border: 1px solid rgba(255, 152, 0, 0.2);
+            border-radius: 8px;
+            padding: 24px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 500px;
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            flex-wrap: wrap;
+            margin-top: 16px;
+            font-size: 0.75rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: hsl(0 0% 70%);
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 12px;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="chart-section">
+            <div class="chart-container">
+                <canvas id="liquidityChart"></canvas>
+            </div>
+            
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: rgba(14, 165, 233, 0.6);"></div>
+                    <span>大盤流動性（左軸）</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: rgba(255, 152, 0, 0.5); border: 2px solid rgba(255, 152, 0, 1);"></div>
+                    <span>Agent 倉位（右軸）</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #4ade80; height: 2px;"></div>
+                    <span>當前價格</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: transparent; border: 2px dashed rgba(255, 51, 133, 0.6); height: 12px;"></div>
+                    <span>可操作區間</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // 核心算法 1: 智能右軸計算（飽和度瓶頸法）
+        // ============================================================
+        /**
+         * 計算右軸的最佳最大值
+         * 確保所有倉位都不會超過其對應位置的大盤流動性
+         * 
+         * @param {Array} agentPositions - Agent 倉位列表
+         * @param {Array} marketLiquidity - 大盤流動性數據
+         * @param {Array} priceLabels - 價格標籤數組
+         * @param {Number} leftYMax - 左軸最大值
+         * @returns {Number} 右軸最大值
+         */
+        function calculateSmartRightAxisMax(agentPositions, marketLiquidity, priceLabels, leftYMax) {
+            const constraints = [];
+            
+            agentPositions.forEach((position, idx) => {
+                const lowerIndex = priceLabels.findIndex(p => p >= position.tickLower);
+                const upperIndex = priceLabels.findIndex(p => p >= position.tickUpper);
+                
+                if (lowerIndex === -1 || upperIndex === -1) return;
+                
+                // 找出倉位範圍內的最小大盤流動性（瓶頸）
+                let minMarketInRange = Infinity;
+                for (let i = lowerIndex; i <= upperIndex; i++) {
+                    if (marketLiquidity[i] < minMarketInRange) {
+                        minMarketInRange = marketLiquidity[i];
+                    }
+                }
+                
+                // 計算這個倉位要求的右軸最大值
+                // 公式：rightYMax >= (position.liquidity × leftYMax) / minMarketInRange
+                const minRequiredRightYMax = (position.liquidity * leftYMax) / minMarketInRange;
+                constraints.push(minRequiredRightYMax);
+            });
+            
+            // 取最大值（最嚴格的限制），確保所有倉位都滿足
+            return Math.max(...constraints);
+        }
+
+        // ============================================================
+        // 數據結構
+        // ============================================================
+        class AgentPosition {
+            constructor(tickLower, tickUpper, liquidity) {
+                this.tickLower = tickLower;
+                this.tickUpper = tickUpper;
+                this.liquidity = liquidity;
+            }
+            
+            contains(price) {
+                return price >= this.tickLower && price <= this.tickUpper;
+            }
+        }
+
+        // ============================================================
+        // 數據生成（示例數據）
+        // ============================================================
+        function generateData() {
+            const priceRange = [];
+            const marketLiquidity = [];
+            
+            // 大盤流動性峰值設定
+            const liquidityPeaks = [
+                { center: 2775, strength: 16000, spread: 25 },
+                { center: 2850, strength: 28000, spread: 30 },
+                { center: 2920, strength: 11000, spread: 35 }
+            ];
+            
+            // 生成大盤流動性數據
+            for (let i = 0; i <= 60; i++) {
+                const price = 2700 + (i * 5);
+                priceRange.push(price);
+
+                let totalLiquidity = 0;
+                liquidityPeaks.forEach(peak => {
+                    const distance = price - peak.center;
+                    totalLiquidity += peak.strength * Math.exp(-Math.pow(distance / peak.spread, 2));
+                });
+                totalLiquidity *= (0.90 + Math.random() * 0.2);
+                
+                const isInPeakRegion = liquidityPeaks.some(p => Math.abs(price - p.center) < p.spread * 1.5);
+                if (!isInPeakRegion) totalLiquidity *= 0.2;
+                
+                marketLiquidity.push(totalLiquidity);
+            }
+            
+            // Agent 智能倉位部署策略：
+            // 1. 中間峰值（$2,850）：最寬、最高 - 對應最深流動性
+            // 2. 左側峰值（$2,775）：窄一點、矮一點
+            // 3. 右側峰值（$2,920）：更窄、更矮 - 對應較淺流動性
+            const agentPositions = [
+                new AgentPosition(2760, 2790, 4200),   // Position #1: 左側，寬度 30，投入 $4.2K
+                new AgentPosition(2830, 2870, 7500),   // Position #2: 中間，寬度 40（最寬），投入 $7.5K（最高）
+                new AgentPosition(2905, 2935, 2800)    // Position #3: 右側，寬度 30，投入 $2.8K（最少）
+            ];
+            
+            const leftYMax = Math.max(...marketLiquidity);
+            const rightYMax = calculateSmartRightAxisMax(agentPositions, marketLiquidity, priceRange, leftYMax);
+
+            return {
+                labels: priceRange.map(p => `$${p.toLocaleString()}`),
+                rawLabels: priceRange,
+                marketLiquidity,
+                agentPositions,
+                leftYMax: leftYMax,
+                rightYMax: rightYMax,
+                currentPriceIndex: 30,
+                allowedLowerPrice: 2750,
+                allowedUpperPrice: 2950
+            };
+        }
+
+        const data = generateData();
+
+        // ============================================================
+        // Chart.js 配置
+        // ============================================================
+        const ctx = document.getElementById('liquidityChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.labels,
+                datasets: [{
+                    label: '大盤流動性',
+                    data: data.marketLiquidity,
+                    backgroundColor: 'rgba(14, 165, 233, 0.6)',
+                    borderWidth: 0,
+                    barPercentage: 1.0,
+                    categoryPercentage: 1.0,
+                    yAxisID: 'yLeft'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'hsl(0 0% 10%)',
+                        titleColor: 'hsl(0 0% 95%)',
+                        bodyColor: 'hsl(0 0% 70%)',
+                        borderColor: 'rgba(255, 152, 0, 0.4)',
+                        borderWidth: 1,
+                        padding: 12,
+                        callbacks: {
+                            title: function(context) {
+                                return '價格: ' + context[0].label;
+                            },
+                            label: function(context) {
+                                const value = context.parsed.y;
+                                return '大盤流動性: $' + value.toLocaleString();
+                            },
+                            afterBody: function(context) {
+                                const price = data.rawLabels[context[0].dataIndex];
+                                const position = data.agentPositions.find(pos => pos.contains(price));
+                                
+                                if (position) {
+                                    const posIndex = data.agentPositions.indexOf(position) + 1;
+                                    const maxAgentLiquidity = Math.max(...data.agentPositions.map(p => p.liquidity));
+                                    const pctOfMax = ((position.liquidity / maxAgentLiquidity) * 100).toFixed(0);
+                                    const marketAtPoint = data.marketLiquidity[context[0].dataIndex];
+                                    const marketShare = ((position.liquidity / marketAtPoint) * 100).toFixed(1);
+                                    
+                                    return [
+                                        '',
+                                        '━━━━━━━━━━━━━━━━━━━━',
+                                        `Agent Position #${posIndex}`,
+                                        `流動性: $${position.liquidity.toLocaleString()}`,
+                                        `價格範圍: $${position.tickLower.toFixed(0)} - $${position.tickUpper.toFixed(0)}`,
+                                        `佔最大倉位: ${pctOfMax}%`,
+                                        `佔大盤比例: ${marketShare}%`
+                                    ];
+                                }
+                                return [];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            maxRotation: 45,
+                            color: 'hsl(0 0% 50%)',
+                            font: { size: 10, family: 'JetBrains Mono' },
+                            maxTicksLimit: 12
+                        },
+                        title: {
+                            display: true,
+                            text: '價格區間 (ETH/USDC)',
+                            color: 'hsl(0 0% 70%)',
+                            font: { size: 12, weight: 600 }
+                        }
+                    },
+                    yLeft: {
+                        type: 'linear',
+                        position: 'left',
+                        grid: { color: 'rgba(14, 165, 233, 0.1)' },
+                        ticks: {
+                            color: 'rgba(14, 165, 233, 1)',
+                            font: { size: 10, family: 'JetBrains Mono' },
+                            callback: v => '$' + (v/1000).toFixed(0) + 'K'
+                        },
+                        title: {
+                            display: true,
+                            text: '大盤流動性',
+                            color: 'rgba(14, 165, 233, 1)',
+                            font: { size: 12, weight: 600 }
+                        }
+                    },
+                    yRight: {
+                        type: 'linear',
+                        position: 'right',
+                        min: 0,
+                        max: data.rightYMax,
+                        grid: { drawOnChartArea: false },
+                        ticks: {
+                            color: 'rgba(255, 152, 0, 1)',
+                            font: { size: 10, family: 'JetBrains Mono' },
+                            callback: v => '$' + (v/1000).toFixed(1) + 'K'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Agent 倉位',
+                            color: 'rgba(255, 152, 0, 1)',
+                            font: { size: 12, weight: 600 }
+                        }
+                    }
+                }
+            },
+            plugins: [{
+                id: 'agentPositionsAndOverlays',
+                afterDatasetsDraw: function(chart) {
+                    const ctx = chart.ctx;
+                    const xAxis = chart.scales.x;
+                    const yAxisRight = chart.scales.yRight;
+                    const yAxisLeft = chart.scales.yLeft;
+                    
+                    // ============================================================
+                    // 核心算法 2: 最小高度保證（20px）
+                    // ============================================================
+                    const MIN_HEIGHT_PX = 20;
+                    
+                    // 繪製 Agent 倉位框框
+                    data.agentPositions.forEach((position, idx) => {
+                        const lowerIndex = data.rawLabels.findIndex(p => p >= position.tickLower);
+                        const upperIndex = data.rawLabels.findIndex(p => p >= position.tickUpper);
+                        
+                        if (lowerIndex === -1 || upperIndex === -1) return;
+                        
+                        const leftX = xAxis.getPixelForValue(lowerIndex);
+                        const rightX = xAxis.getPixelForValue(upperIndex);
+                        const width = rightX - leftX;
+                        
+                        const chartHeight = yAxisRight.bottom - yAxisRight.top;
+                        const heightRatio = position.liquidity / data.rightYMax;
+                        const calculatedHeight = chartHeight * heightRatio;
+                        
+                        // 找出範圍內的最小大盤流動性高度（雙重保險）
+                        let minMarketHeightInRange = Infinity;
+                        for (let i = lowerIndex; i <= upperIndex; i++) {
+                            const marketHeightRatio = data.marketLiquidity[i] / data.leftYMax;
+                            const marketHeight = chartHeight * marketHeightRatio;
+                            if (marketHeight < minMarketHeightInRange) {
+                                minMarketHeightInRange = marketHeight;
+                            }
+                        }
+                        
+                        // 應用三個限制：
+                        // 1. 計算高度
+                        // 2. 最小高度保證（20px）
+                        // 3. 不超過大盤高度
+                        let finalHeight = Math.max(calculatedHeight, MIN_HEIGHT_PX);
+                        finalHeight = Math.min(finalHeight, minMarketHeightInRange);
+                        
+                        const topY = yAxisRight.bottom - finalHeight;
+                        
+                        ctx.save();
+                        
+                        // 統一顏色：半透明橘色背景 + 實線橘色邊框
+                        ctx.fillStyle = 'rgba(255, 152, 0, 0.5)';
+                        ctx.fillRect(leftX, topY, width, finalHeight);
+                        
+                        ctx.strokeStyle = 'rgba(255, 152, 0, 1)';
+                        ctx.lineWidth = 3;
+                        ctx.shadowColor = 'rgba(255, 152, 0, 0.6)';
+                        ctx.shadowBlur = 10;
+                        ctx.strokeRect(leftX, topY, width, finalHeight);
+                        
+                        ctx.restore();
+                    });
+                    
+                    // ============================================================
+                    // 可操作區間邊界（粉紅色虛線）
+                    // ============================================================
+                    const allowedLowerIndex = data.rawLabels.findIndex(p => p >= data.allowedLowerPrice);
+                    const allowedUpperIndex = data.rawLabels.findIndex(p => p >= data.allowedUpperPrice);
+                    
+                    if (allowedLowerIndex !== -1 && allowedUpperIndex !== -1) {
+                        const leftX = xAxis.getPixelForValue(allowedLowerIndex);
+                        const rightX = xAxis.getPixelForValue(allowedUpperIndex);
+                        
+                        ctx.save();
+                        
+                        // 半透明粉紅色背景
+                        ctx.fillStyle = 'rgba(255, 51, 133, 0.05)';
+                        ctx.fillRect(leftX, yAxisLeft.top, rightX - leftX, yAxisLeft.bottom - yAxisLeft.top);
+                        
+                        // 粉紅色虛線邊界
+                        ctx.strokeStyle = 'rgba(255, 51, 133, 0.6)';
+                        ctx.lineWidth = 2.5;
+                        ctx.setLineDash([8, 4]);
+                        ctx.shadowColor = 'rgba(255, 51, 133, 0.5)';
+                        ctx.shadowBlur = 8;
+                        
+                        // 左邊界
+                        ctx.beginPath();
+                        ctx.moveTo(leftX, yAxisLeft.top);
+                        ctx.lineTo(leftX, yAxisLeft.bottom);
+                        ctx.stroke();
+                        
+                        // 右邊界
+                        ctx.beginPath();
+                        ctx.moveTo(rightX, yAxisLeft.top);
+                        ctx.lineTo(rightX, yAxisLeft.bottom);
+                        ctx.stroke();
+                        
+                        ctx.setLineDash([]);
+                        ctx.shadowBlur = 0;
+                        
+                        // 價格標籤
+                        ctx.fillStyle = 'rgba(255, 51, 133, 0.8)';
+                        ctx.font = '600 10px JetBrains Mono';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(`$${data.allowedLowerPrice.toLocaleString()}`, leftX, yAxisLeft.bottom + 15);
+                        ctx.fillText(`$${data.allowedUpperPrice.toLocaleString()}`, rightX, yAxisLeft.bottom + 15);
+                        
+                        ctx.restore();
+                    }
+                    
+                    // ============================================================
+                    // 當前價格線（綠色虛線）
+                    // ============================================================
+                    const currentX = xAxis.getPixelForValue(data.currentPriceIndex);
+                    const currentPrice = data.rawLabels[data.currentPriceIndex];
+                    const inRange = data.agentPositions.some(pos => pos.contains(currentPrice));
+                    
+                    ctx.save();
+                    ctx.strokeStyle = '#4ade80';
+                    ctx.lineWidth = 2.5;
+                    ctx.setLineDash([6, 6]);
+                    ctx.shadowColor = '#4ade80';
+                    ctx.shadowBlur = inRange ? 20 : 12;
+                    ctx.beginPath();
+                    ctx.moveTo(currentX, yAxisLeft.top);
+                    ctx.lineTo(currentX, yAxisLeft.bottom);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    ctx.restore();
+                    
+                    // 當前價格標籤
+                    ctx.save();
+                    ctx.fillStyle = '#4ade80';
+                    ctx.shadowColor = '#4ade80';
+                    ctx.shadowBlur = 10;
+                    ctx.font = '700 12px JetBrains Mono';
+                    ctx.textAlign = 'center';
+                    
+                    if (inRange) {
+                        ctx.fillText('IN RANGE ✓', currentX, yAxisLeft.top - 20);
+                    }
+                    ctx.fillText(`$${currentPrice.toLocaleString()}`, currentX, yAxisLeft.top - 6);
+                    ctx.restore();
+                }
+            }]
+        });
+    </script>
+</body>
+</html>
