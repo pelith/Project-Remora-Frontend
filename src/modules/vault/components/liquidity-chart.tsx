@@ -66,7 +66,7 @@ export const LiquidityChart = ({ vault }: LiquidityChartProps) => {
 									return (
 										<tr
 											key={pos.id}
-											className='hover:bg-white/[0.02] transition-colors'
+											className='hover:bg-white/2 transition-colors'
 										>
 											<td className='py-3 px-4 text-zinc-500'>{idx + 1}</td>
 											<td className='py-3 px-4'>
