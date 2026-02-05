@@ -1,7 +1,6 @@
 import { useAtomValue } from 'jotai';
 import { useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
-import { useAppKitAccount } from '@reown/appkit/react';
 import { vaultsAtom } from '../stores/vault.store';
 import {
 	EmptyState,
@@ -10,11 +9,10 @@ import {
 } from '../components';
 import { Button } from '@/modules/common/components/ui/button';
 import { Container } from '@/modules/common/components/layout/container';
-import { Plus, Wallet } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 export default function VaultListContainer() {
 	const vaults = useAtomValue(vaultsAtom);
-	const { isConnected } = useAppKitAccount();
 	const navigate = useNavigate();
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
 
@@ -22,24 +20,7 @@ export default function VaultListContainer() {
 		navigate({ to: '/vaults/$vaultId', params: { vaultId } });
 	};
 
-	if (!isConnected) {
-		return (
-			<Container className='py-12'>
-				<div className='flex flex-col items-center justify-center space-y-6 text-center py-20'>
-					<h1 className='text-4xl font-bold tracking-tight'>
-						Agentic <span className='text-primary'>Uniswap v4</span> Vaults
-					</h1>
-					<p className='text-text-secondary max-w-lg text-lg'>
-						Automated liquidity management powered by AI agents. Connect your
-						wallet to get started.
-					</p>
-					<Button size='lg' className='gap-2'>
-						<Wallet className='w-5 h-5' /> Connect Wallet
-					</Button>
-				</div>
-			</Container>
-		);
-	}
+	// Skip wallet connection check for demo purposes
 
 	return (
 		<Container className='py-8'>

@@ -23,8 +23,6 @@ import { ChevronRight, Loader2, Check, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { getMockPrice } from '../utils/vault-utils';
-import { useAppKitAccount } from '@reown/appkit/react';
-import { useBalance } from 'wagmi';
 
 interface CreateVaultSheetProps {
 	open: boolean;
@@ -50,14 +48,9 @@ export const CreateVaultSheet = ({
 	const [lastLimit, setLastLimit] = useState('5');
 	const createVault = useSetAtom(createVaultAtom);
 	const isLoading = useAtomValue(isLoadingAtom);
-	const { address, isConnected } = useAppKitAccount();
-
-	const { data: ethBalance } = useBalance({
-		address: address as `0x${string}` | undefined,
-		query: {
-			enabled: isConnected && Boolean(address),
-		},
-	});
+	
+	// Mock wallet connection for demo
+	const isConnected = true;
 
 	const formatPrice = (price: number) => {
 		return new Intl.NumberFormat('en-US', {
@@ -148,8 +141,9 @@ export const CreateVaultSheet = ({
 		token0?.symbol === 'ETH' ||
 		token0?.symbol === 'WBTC' ||
 		token0?.symbol === 'UNI';
-	const avail0 = isToken0Eth ? ethBalance?.formatted || '0' : '10000';
-	const avail1 = isToken0Eth ? '10000' : ethBalance?.formatted || '0';
+	// Mock balances for demo - always have enough balance
+	const avail0 = isToken0Eth ? '100.00' : '10000.00';
+	const avail1 = isToken0Eth ? '10000.00' : '100.00';
 	const currentBasePrice = token0 ? getMockPrice(token0.symbol) : 0;
 
 	const getStepTitle = () => {

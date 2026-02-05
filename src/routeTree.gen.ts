@@ -9,10 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VaultsRouteImport } from './routes/vaults'
 import { Route as ConnectWalletRouteImport } from './routes/connect-wallet'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as VaultsVaultIdRouteImport } from './routes/vaults.$vaultId'
 import { Route as DemoTanstackQueryRouteImport } from './routes/demo/tanstack-query'
 
+const VaultsRoute = VaultsRouteImport.update({
+  id: '/vaults',
+  path: '/vaults',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ConnectWalletRoute = ConnectWalletRouteImport.update({
   id: '/connect-wallet',
   path: '/connect-wallet',
@@ -23,6 +30,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VaultsVaultIdRoute = VaultsVaultIdRouteImport.update({
+  id: '/$vaultId',
+  path: '/$vaultId',
+  getParentRoute: () => VaultsRoute,
+} as any)
 const DemoTanstackQueryRoute = DemoTanstackQueryRouteImport.update({
   id: '/demo/tanstack-query',
   path: '/demo/tanstack-query',
@@ -32,35 +44,65 @@ const DemoTanstackQueryRoute = DemoTanstackQueryRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/connect-wallet': typeof ConnectWalletRoute
+  '/vaults': typeof VaultsRouteWithChildren
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/vaults/$vaultId': typeof VaultsVaultIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/connect-wallet': typeof ConnectWalletRoute
+  '/vaults': typeof VaultsRouteWithChildren
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/vaults/$vaultId': typeof VaultsVaultIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/connect-wallet': typeof ConnectWalletRoute
+  '/vaults': typeof VaultsRouteWithChildren
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/vaults/$vaultId': typeof VaultsVaultIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/connect-wallet' | '/demo/tanstack-query'
+  fullPaths:
+    | '/'
+    | '/connect-wallet'
+    | '/vaults'
+    | '/demo/tanstack-query'
+    | '/vaults/$vaultId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/connect-wallet' | '/demo/tanstack-query'
-  id: '__root__' | '/' | '/connect-wallet' | '/demo/tanstack-query'
+  to:
+    | '/'
+    | '/connect-wallet'
+    | '/vaults'
+    | '/demo/tanstack-query'
+    | '/vaults/$vaultId'
+  id:
+    | '__root__'
+    | '/'
+    | '/connect-wallet'
+    | '/vaults'
+    | '/demo/tanstack-query'
+    | '/vaults/$vaultId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ConnectWalletRoute: typeof ConnectWalletRoute
+  VaultsRoute: typeof VaultsRouteWithChildren
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/vaults': {
+      id: '/vaults'
+      path: '/vaults'
+      fullPath: '/vaults'
+      preLoaderRoute: typeof VaultsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/connect-wallet': {
       id: '/connect-wallet'
       path: '/connect-wallet'
@@ -75,6 +117,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/vaults/$vaultId': {
+      id: '/vaults/$vaultId'
+      path: '/$vaultId'
+      fullPath: '/vaults/$vaultId'
+      preLoaderRoute: typeof VaultsVaultIdRouteImport
+      parentRoute: typeof VaultsRoute
+    }
     '/demo/tanstack-query': {
       id: '/demo/tanstack-query'
       path: '/demo/tanstack-query'
@@ -85,9 +134,21 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface VaultsRouteChildren {
+  VaultsVaultIdRoute: typeof VaultsVaultIdRoute
+}
+
+const VaultsRouteChildren: VaultsRouteChildren = {
+  VaultsVaultIdRoute: VaultsVaultIdRoute,
+}
+
+const VaultsRouteWithChildren =
+  VaultsRoute._addFileChildren(VaultsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ConnectWalletRoute: ConnectWalletRoute,
+  VaultsRoute: VaultsRouteWithChildren,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
 }
 export const routeTree = rootRouteImport

@@ -10,7 +10,89 @@ import {
 	getMockPrice,
 } from '../utils/vault-utils';
 
-export const vaultsAtom = atom<Vault[]>([]);
+// Mock initial vaults for demo
+const mockVaults: Vault[] = [
+	{
+		id: 'vault-demo-1',
+		vaultAddress: '0x1234567890123456789012345678901234567890',
+		poolKey: {
+			token0: { symbol: 'ETH', name: 'Ethereum', decimals: 18 },
+			token1: { symbol: 'USDC', name: 'USD Coin', decimals: 6 },
+			fee: 500,
+			id: 'pool-1',
+		},
+		totalValueUSD: 125000,
+		createdAt: Date.now() - 86400000,
+		agentStatus: 'active',
+		availableBalance: {
+			token0: 10.5,
+			token1: 25000,
+		},
+		inPositions: {
+			token0: 40.0,
+			token1: 100000,
+		},
+		config: {
+			tickLower: -2000,
+			tickUpper: 2000,
+			k: 5,
+			swapAllowed: true,
+		},
+		positions: [
+			{
+				id: 'pos-1',
+				tickLower: -30,
+				tickUpper: 30,
+				liquidityUSD: 50000,
+				inRange: true,
+			},
+			{
+				id: 'pos-2',
+				tickLower: -150,
+				tickUpper: -90,
+				liquidityUSD: 30000,
+				inRange: false,
+			},
+			{
+				id: 'pos-3',
+				tickLower: 150,
+				tickUpper: 210,
+				liquidityUSD: 20000,
+				inRange: false,
+			},
+		],
+	},
+	{
+		id: 'vault-demo-2',
+		vaultAddress: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+		poolKey: {
+			token0: { symbol: 'WBTC', name: 'Wrapped Bitcoin', decimals: 8 },
+			token1: { symbol: 'ETH', name: 'Ethereum', decimals: 18 },
+			fee: 500,
+			id: 'pool-2',
+		},
+		totalValueUSD: 85000,
+		createdAt: Date.now() - 172800000,
+		agentStatus: 'paused',
+		availableBalance: {
+			token0: 1.2,
+			token1: 15.0,
+		},
+		inPositions: {
+			token0: 0,
+			token1: 0,
+		},
+		config: {
+			tickLower: -1000,
+			tickUpper: 1000,
+			k: 3,
+			swapAllowed: false,
+		},
+		positions: [],
+	},
+];
+
+export const vaultsAtom = atom<Vault[]>(mockVaults);
 export const isLoadingAtom = atom(false);
 
 // Helper function to update vault

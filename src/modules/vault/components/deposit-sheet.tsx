@@ -17,8 +17,6 @@ import { Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/modules/common/components/ui/alert';
-import { useAppKitAccount } from '@reown/appkit/react';
-import { useBalance } from 'wagmi';
 
 interface DepositSheetProps {
 	vault: Vault;
@@ -31,7 +29,8 @@ export const DepositSheet = ({
 	open,
 	onOpenChange,
 }: DepositSheetProps) => {
-	const { address, isConnected } = useAppKitAccount();
+	// Mock wallet connection for demo
+	const isConnected = true;
 	const deposit = useSetAtom(depositAtom);
 
 	const [amount0, setAmount0] = useState('');
@@ -40,26 +39,14 @@ export const DepositSheet = ({
 		{},
 	);
 
-	// Get balances from wallet (simplified - in real app would use actual token balances)
-	const { data: ethBalance } = useBalance({
-		address: address as `0x${string}` | undefined,
-		query: {
-			enabled: isConnected && Boolean(address),
-		},
-	});
-
 	// Helper to determine asset type
 	const isToken0Eth = ['ETH', 'WBTC', 'UNI'].includes(
 		vault.poolKey.token0.symbol,
 	);
 
-	// Mock balances for now - in real app would fetch actual token balances
-	const avail0 = isToken0Eth
-		? ethBalance?.formatted || '0'
-		: '10000'; // Mock USDC balance
-	const avail1 = isToken0Eth
-		? '10000' // Mock USDC balance
-		: ethBalance?.formatted || '0';
+	// Mock balances for demo - always have enough balance
+	const avail0 = isToken0Eth ? '100.00' : '10000.00';
+	const avail1 = isToken0Eth ? '10000.00' : '100.00';
 
 	const validate = () => {
 		const newErrors: { token0?: string; token1?: string } = {};
