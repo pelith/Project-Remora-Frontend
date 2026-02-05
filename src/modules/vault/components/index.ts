@@ -1,5 +1,6 @@
 export { EmptyState } from './empty-state';
 export { VaultCard } from './vault-card';
+export { VaultOverview } from './vault-overview';
 export { DepositSheet } from './deposit-sheet';
 export { WithdrawSheet } from './withdraw-sheet';
 export { FullExitDialog } from './full-exit-dialog';
