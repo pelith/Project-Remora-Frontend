@@ -74,34 +74,38 @@ function createOverlayPlugin(
 				}
 
 				const chartHeight = yAxisRight.bottom - yAxisRight.top;
-				const heightRatio = position.liquidity / chartData.rightYMax;
+				
+				// Calculate height based on right axis
+				const heightRatio = chartData.rightYMax > 0 
+					? position.liquidity / chartData.rightYMax 
+					: 0;
 				const calculatedHeight = chartHeight * heightRatio;
 
-				// Find minimum market liquidity height in range
+				// Find minimum market liquidity height in range (for constraint)
 				let minMarketHeightInRange = Infinity;
 				for (let i = lowerIndex; i <= upperIndex && i < chartData.marketLiquidity.length; i++) {
 					const marketHeightRatio =
 						chartData.marketLiquidity[i] / chartData.leftYMax;
 					const marketHeight = chartHeight * marketHeightRatio;
-					if (marketHeight < minMarketHeightInRange) {
+					if (marketHeight < minMarketHeightInRange && marketHeight > 0) {
 						minMarketHeightInRange = marketHeight;
 					}
 				}
 
 				// Apply constraints: calculated height, min height, max market height
 				let finalHeight = Math.max(calculatedHeight, MIN_HEIGHT_PX);
-				if (minMarketHeightInRange !== Infinity) {
+				if (minMarketHeightInRange !== Infinity && minMarketHeightInRange > 0) {
 					finalHeight = Math.min(finalHeight, minMarketHeightInRange);
 				}
 
-				// Ensure height is valid
-				if (finalHeight <= 0) {
-					console.warn(`Position ${idx}: Invalid height`, {
+				// Ensure height is valid and visible
+				if (finalHeight <= 0 || !Number.isFinite(finalHeight)) {
+					console.warn(`Position ${idx}: Invalid height, using minimum`, {
 						calculatedHeight,
 						minMarketHeightInRange,
-						finalHeight,
 						liquidity: position.liquidity,
 						rightYMax: chartData.rightYMax,
+						heightRatio,
 					});
 					finalHeight = MIN_HEIGHT_PX; // Fallback to minimum
 				}
