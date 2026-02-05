@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useRef } from 'react';
+import { useMemo } from 'react';
 import {
 	Chart as ChartJS,
 	CategoryScale,
@@ -11,7 +11,6 @@ import {
 	type Plugin,
 } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
-import type { Chart } from 'chart.js';
 import type { Vault } from '../types/vault.types';
 import {
 	generateLiquidityChartData,
@@ -268,7 +267,6 @@ function createOverlayPlugin(
 export const LiquidityDistributionChart = ({
 	vault,
 }: LiquidityDistributionChartProps) => {
-	const chartRef = useRef<Chart<'bar'> | null>(null);
 
 	const chartData = useMemo(
 		() => {
@@ -290,11 +288,11 @@ export const LiquidityDistributionChart = ({
 	);
 
 	// Force chart update when vault data changes
-	useEffect(() => {
-		if (chartRef.current) {
-			chartRef.current.update('none'); // 'none' mode for instant update
-		}
-	}, [chartData, vault.positions.length, vault.agentStatus]);
+	// Using key prop to force re-render when positions or agent status changes
+	const chartKey = useMemo(
+		() => `chart-${vault.id}-${vault.positions.length}-${vault.agentStatus}-${Date.now()}`,
+		[vault.id, vault.positions.length, vault.agentStatus],
+	);
 
 	// Prepare Chart.js data
 	const chartJsData: ChartData<'bar'> = useMemo(
@@ -470,11 +468,10 @@ export const LiquidityDistributionChart = ({
 				<div className='p-4'>
 					<div className='relative h-[500px]'>
 						<Bar
-							ref={chartRef}
 							data={chartJsData}
 							options={chartOptions}
 							plugins={[overlayPlugin]}
-							key={`chart-${vault.id}-${vault.positions.length}-${vault.agentStatus}`}
+							key={chartKey}
 						/>
 					</div>
 
