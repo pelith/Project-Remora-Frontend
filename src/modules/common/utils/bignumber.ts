@@ -4,13 +4,13 @@ import { getCommonDecimal } from './formatCommonNumbers';
 export { BigNumber };
 
 export function configureBigNumber() {
-  BigNumber.set({ ROUNDING_MODE: BigNumber.ROUND_DOWN });
+	BigNumber.set({ ROUNDING_MODE: BigNumber.ROUND_DOWN });
 }
 
 const TEN = new BigNumber(10);
 
 export function powerOf10(n: number) {
-  return TEN.pow(n);
+	return TEN.pow(n);
 }
 
 const BIGNUMBER_ZERO = new BigNumber(0);
@@ -20,21 +20,21 @@ const BIGNUMBER_ZERO = new BigNumber(0);
  * cannot be parsed (throws or NaN), return the fallback value.
  */
 export function parseToBigNumber(
-  value: BigNumber.Value,
-  fallback: BigNumber = BIGNUMBER_ZERO,
+	value: BigNumber.Value,
+	fallback: BigNumber = BIGNUMBER_ZERO,
 ): BigNumber {
-  try {
-    // fix has more than 15 significant digits
-    const ret = new BigNumber(`${value}`);
-    if (!ret.isNaN()) return ret;
-  } catch (_e) {
-    /* fallthrough */
-  }
-  return fallback;
+	try {
+		// fix has more than 15 significant digits
+		const ret = new BigNumber(`${value}`);
+		if (!ret.isNaN()) return ret;
+	} catch (_e) {
+		/* fallthrough */
+	}
+	return fallback;
 }
 
 export function bigNumberToBigInt(bn: BigNumber) {
-  return BigInt(bn.integerValue().toFixed());
+	return BigInt(bn.integerValue().toFixed());
 }
 
 /**
@@ -44,28 +44,28 @@ export function bigNumberToBigInt(bn: BigNumber) {
  * @returns Formatted string (e.g., "1.15M", "1K", "1.23B")
  */
 export function formatBigNumber(value: BigNumber.Value, decimals = 2): string {
-  const bn = value instanceof BigNumber ? value : parseToBigNumber(`${value}`);
-  const decimalsToUse = bn.abs().lt(1) ? getCommonDecimal(bn) : decimals;
+	const bn = value instanceof BigNumber ? value : parseToBigNumber(`${value}`);
+	const decimalsToUse = bn.abs().lt(1) ? getCommonDecimal(bn) : decimals;
 
-  if (bn.isZero()) return '0';
+	if (bn.isZero()) return '0';
 
-  const suffixes = [
-    { value: 1e12, suffix: 'T' },
-    { value: 1e9, suffix: 'B' },
-    { value: 1e6, suffix: 'M' },
-    { value: 1e3, suffix: 'K' },
-  ];
+	const suffixes = [
+		{ value: 1e12, suffix: 'T' },
+		{ value: 1e9, suffix: 'B' },
+		{ value: 1e6, suffix: 'M' },
+		{ value: 1e3, suffix: 'K' },
+	];
 
-  for (const { value: threshold, suffix } of suffixes) {
-    if (bn.abs().gte(threshold)) {
-      const formatted = bn.div(threshold).toFixed(decimalsToUse);
-      // Remove trailing zeros and unnecessary decimal point
-      const clean = formatted.replace(/\.?0+$/, '');
-      return clean + suffix;
-    }
-  }
+	for (const { value: threshold, suffix } of suffixes) {
+		if (bn.abs().gte(threshold)) {
+			const formatted = bn.div(threshold).toFixed(decimalsToUse);
+			// Remove trailing zeros and unnecessary decimal point
+			const clean = formatted.replace(/\.?0+$/, '');
+			return clean + suffix;
+		}
+	}
 
-  return bn.toFixed(decimalsToUse);
+	return bn.toFixed(decimalsToUse);
 }
 
 /**
@@ -75,14 +75,14 @@ export function formatBigNumber(value: BigNumber.Value, decimals = 2): string {
  * @returns Formatted string (e.g., "$1.5M", "1M SOL")
  */
 export function formatBigNumberWithCurrency(
-  value: BigNumber.Value,
-  options: {
-    prefix?: string;
-    suffix?: string;
-    decimals?: number;
-  } = {},
+	value: BigNumber.Value,
+	options: {
+		prefix?: string;
+		suffix?: string;
+		decimals?: number;
+	} = {},
 ): string {
-  const { prefix = '', suffix = '', decimals = 2 } = options;
-  const formatted = formatBigNumber(value, decimals);
-  return `${prefix}${formatted}${suffix}`;
+	const { prefix = '', suffix = '', decimals = 2 } = options;
+	const formatted = formatBigNumber(value, decimals);
+	return `${prefix}${formatted}${suffix}`;
 }

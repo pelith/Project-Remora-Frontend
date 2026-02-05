@@ -6,8 +6,7 @@ import * as TanStackQueryProvider from './integrations/tanstack-query/root-provi
 
 // Import the generated route tree
 import { routeTree } from './routeTree.gen';
-
-import './styles.css';
+import './styles/index.css';
 import { WagmiProvider } from 'wagmi';
 import { ThemeProvider } from './modules/common/layouts/theme-provider.tsx';
 import { AtomStoreProvider } from './modules/common/store/store.tsx';

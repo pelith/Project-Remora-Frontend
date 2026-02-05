@@ -11,7 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ConnectWalletRouteImport } from './routes/connect-wallet'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as DemoTanstackQueryRouteImport } from './routes/demo/tanstack-query'
+import { Route as VaultsVaultIdRouteImport } from './routes/vaults/$vaultId'
 
 const ConnectWalletRoute = ConnectWalletRouteImport.update({
   id: '/connect-wallet',
@@ -23,40 +23,40 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DemoTanstackQueryRoute = DemoTanstackQueryRouteImport.update({
-  id: '/demo/tanstack-query',
-  path: '/demo/tanstack-query',
+const VaultsVaultIdRoute = VaultsVaultIdRouteImport.update({
+  id: '/vaults/$vaultId',
+  path: '/vaults/$vaultId',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/connect-wallet': typeof ConnectWalletRoute
-  '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/vaults/$vaultId': typeof VaultsVaultIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/connect-wallet': typeof ConnectWalletRoute
-  '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/vaults/$vaultId': typeof VaultsVaultIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/connect-wallet': typeof ConnectWalletRoute
-  '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/vaults/$vaultId': typeof VaultsVaultIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/connect-wallet' | '/demo/tanstack-query'
+  fullPaths: '/' | '/connect-wallet' | '/vaults/$vaultId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/connect-wallet' | '/demo/tanstack-query'
-  id: '__root__' | '/' | '/connect-wallet' | '/demo/tanstack-query'
+  to: '/' | '/connect-wallet' | '/vaults/$vaultId'
+  id: '__root__' | '/' | '/connect-wallet' | '/vaults/$vaultId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ConnectWalletRoute: typeof ConnectWalletRoute
-  DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
+  VaultsVaultIdRoute: typeof VaultsVaultIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -75,11 +75,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/demo/tanstack-query': {
-      id: '/demo/tanstack-query'
-      path: '/demo/tanstack-query'
-      fullPath: '/demo/tanstack-query'
-      preLoaderRoute: typeof DemoTanstackQueryRouteImport
+    '/vaults/$vaultId': {
+      id: '/vaults/$vaultId'
+      path: '/vaults/$vaultId'
+      fullPath: '/vaults/$vaultId'
+      preLoaderRoute: typeof VaultsVaultIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -88,7 +88,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ConnectWalletRoute: ConnectWalletRoute,
-  DemoTanstackQueryRoute: DemoTanstackQueryRoute,
+  VaultsVaultIdRoute: VaultsVaultIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

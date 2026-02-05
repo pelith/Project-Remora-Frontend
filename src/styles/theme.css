@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+@theme {
+  /* Deep Indigo / Navy Black #0B1B33 */
+  --color-background: hsl(216 65% 12%);
+  
+  /* Steel Blue / Grey Blue #1E436D */
+  --color-surface: hsl(212 57% 27%);
+  --color-surface-elevated: hsl(212 57% 32%); /* Slightly lighter than surface */
+  --color-surface-card: hsl(212 57% 27%);
+  
+  /* Teal / Cyan #25D3B8 */
+  --color-primary: hsl(171 70% 49%);
+  --color-primary-hover: hsl(171 70% 59%);
+  --color-primary-glow: hsl(171 70% 49% / 0.3);
+
+  /* Electric Blue #4A90E2 */
+  --color-secondary: hsl(212 72% 59%);
+  
+  /* Royal Purple #6B46C1 */
+  --color-accent: hsl(258 51% 52%);
+
+  /* Pure White #FFFFFF */
+  --color-text-primary: hsl(0 0% 100%);
+  --color-text-secondary: hsl(212 30% 85%); /* Light blue-grey */
+  --color-text-muted: hsl(212 20% 65%); /* Muted blue-grey */
+  
+  --color-success: hsl(142 70% 50%);
+  --color-error: hsl(0 84% 60%);
+  
+  /* Amber / Bright Gold #F5A623 */
+  --color-warning: hsl(37 91% 55%);
+  
+  --color-info: hsl(212 72% 59%); /* Match secondary/electric blue */
+  
+  --color-border-subtle: hsl(212 57% 40% / 0.3);
+  --color-border-default: hsl(212 57% 50% / 0.3);
+  --color-border-strong: hsl(212 57% 60% / 0.5);
+
+  --animate-pulse-subtle: pulse-subtle 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-glow: glow 2s ease-in-out infinite;
+  --animate-slide-in: slide-in 0.3s ease-out;
+
+  @keyframes pulse-subtle {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+  }
+  @keyframes glow {
+    0%, 100% { box-shadow: 0 0 10px var(--color-primary-glow); }
+    50% { box-shadow: 0 0 20px var(--color-primary-glow); }
+  }
+  @keyframes slide-in {
+    0% { transform: translateX(100%); opacity: 0; }
+    100% { transform: translateX(0); opacity: 1; }
+  }
+}
+
+/* Shadcn compatibility */
+:root {
+  /* Deep Indigo #0B1B33 */
+  --background: 216 65% 12%;
+  --foreground: 0 0% 100%;
+  
+  /* Steel Blue #1E436D */
+  --card: 212 57% 27%;
+  --card-foreground: 0 0% 100%;
+  
+  --popover: 212 57% 27%;
+  --popover-foreground: 0 0% 100%;
+  
+  /* Teal #25D3B8 */
+  --primary: 171 70% 49%;
+  --primary-foreground: 216 65% 12%; /* Dark background on teal */
+  
+  /* Electric Blue #4A90E2 */
+  --secondary: 212 72% 59%;
+  --secondary-foreground: 0 0% 100%;
+  
+  --muted: 212 57% 20%;
+  --muted-foreground: 212 20% 65%;
+  
+  /* Royal Purple #6B46C1 */
+  --accent: 258 51% 52%;
+  --accent-foreground: 0 0% 100%;
+  
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  
+  --border: 212 57% 40%;
+  --input: 212 57% 40%;
+  --ring: 171 70% 49%;
+  
+  --radius: 0.5rem;
+}
+
+body {
+  background: linear-gradient(135deg, #0B1B33 0%, #3B76B3 100%);
+  background-attachment: fixed;
+  color: var(--color-text-primary);
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
