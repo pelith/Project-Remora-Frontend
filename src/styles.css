@@ -136,3 +136,25 @@ code {
     @apply bg-background text-foreground;
   }
 }
+
+/* Vault theme variables */
+@theme inline {
+  --color-surface: oklch(0.1 0 0);
+  --color-surface-elevated: oklch(0.14 0 0);
+  --color-surface-card: oklch(0.12 0 0);
+  
+  --color-text-primary: oklch(0.95 0 0);
+  --color-text-secondary: oklch(0.7 0 0);
+  --color-text-muted: oklch(0.5 0 0);
+  
+  --color-primary-hover: oklch(0.65 0.1 330);
+  --color-primary-glow: oklch(0.6 0.1 330 / 0.3);
+  
+  --color-success: oklch(0.55 0.15 142);
+  --color-error: oklch(0.6 0.2 0);
+  --color-warning: oklch(0.5 0.2 38);
+  
+  --color-border-subtle: oklch(0.6 0.1 330 / 0.1);
+  --color-border-default: oklch(0.6 0.1 330 / 0.2);
+  --color-border-strong: oklch(0.6 0.1 330 / 0.4);
+}
