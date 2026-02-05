@@ -15,14 +15,14 @@ import { Input } from '@/modules/common/components/ui/input';
 import { Label } from '@/modules/common/components/ui/label';
 import { Switch } from '@/modules/common/components/ui/switch';
 import { Separator } from '@/modules/common/components/ui/separator';
-import { RadioGroup, RadioGroupItem } from '@/modules/common/components/ui/radio-group';
+import {
+	RadioGroup,
+	RadioGroupItem,
+} from '@/modules/common/components/ui/radio-group';
 import { Loader2, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import {
-	Alert,
-	AlertDescription,
-} from '@/modules/common/components/ui/alert';
+import { Alert, AlertDescription } from '@/modules/common/components/ui/alert';
 import { getMockPrice } from '../utils/vault-utils';
 
 interface SettingsSheetProps {
@@ -43,12 +43,8 @@ export const SettingsSheet = ({
 
 	// Local state
 	const [riskProfile, setRiskProfile] = useState<RiskProfile>('custom');
-	const [tickLower, setTickLower] = useState(
-		vault.config.tickLower.toString(),
-	);
-	const [tickUpper, setTickUpper] = useState(
-		vault.config.tickUpper.toString(),
-	);
+	const [tickLower, setTickLower] = useState(vault.config.tickLower.toString());
+	const [tickUpper, setTickUpper] = useState(vault.config.tickUpper.toString());
 	const [swapAllowed, setSwapAllowed] = useState(vault.config.swapAllowed);
 	const [maxPositions, setMaxPositions] = useState(vault.config.k.toString());
 	// Local state to remember the last non-zero limit
@@ -74,7 +70,7 @@ export const SettingsSheet = ({
 	const getTickFromPrice = (price: number) => {
 		// Inverse of getPriceFromTick: tick = ((price / currentPrice) - 1) * 10000
 		if (currentPrice === 0) return 0;
-		return Math.round(((price / currentPrice - 1) * 10000));
+		return Math.round((price / currentPrice - 1) * 10000);
 	};
 
 	const getRangeDisplay = (lower: number, upper: number) => {
@@ -98,10 +94,8 @@ export const SettingsSheet = ({
 
 			// Heuristic to detect profile
 			if (lower === -1000 && upper === 1000) setRiskProfile('conservative');
-			else if (lower === -2000 && upper === 2000)
-				setRiskProfile('standard');
-			else if (lower === -5000 && upper === 5000)
-				setRiskProfile('aggressive');
+			else if (lower === -2000 && upper === 2000) setRiskProfile('standard');
+			else if (lower === -5000 && upper === 5000) setRiskProfile('aggressive');
 			else setRiskProfile('custom');
 		}
 	}, [open, vault, currentPrice]);
@@ -183,8 +177,8 @@ export const SettingsSheet = ({
 							<Info className='h-4 w-4 text-primary' />
 							<AlertDescription className='text-xs text-text-secondary'>
 								Changes to the price range will only affect{' '}
-								<strong>newly created positions</strong>. Existing positions will
-								remain active until they are closed or rebalanced.
+								<strong>newly created positions</strong>. Existing positions
+								will remain active until they are closed or rebalanced.
 							</AlertDescription>
 						</Alert>
 
@@ -367,11 +361,7 @@ export const SettingsSheet = ({
 				</div>
 
 				<SheetFooter>
-					<Button
-						className='w-full'
-						onClick={handleSave}
-						disabled={isLoading}
-					>
+					<Button className='w-full' onClick={handleSave} disabled={isLoading}>
 						{isLoading ? (
 							<Loader2 className='w-4 h-4 animate-spin' />
 						) : (
@@ -383,4 +373,3 @@ export const SettingsSheet = ({
 		</Sheet>
 	);
 };
-

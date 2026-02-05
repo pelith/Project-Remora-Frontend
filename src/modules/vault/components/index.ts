@@ -10,4 +10,3 @@ export { PerformanceCard } from './performance-card';
 export { PositionsTable } from './positions-table';
 export { SettingsSheet } from './settings-sheet';
 export { CreateVaultSheet } from './create-vault-sheet';
-

@@ -41,4 +41,3 @@ export const PerformanceCard = () => {
 		</Card>
 	);
 };
-

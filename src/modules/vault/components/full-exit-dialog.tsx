@@ -61,7 +61,10 @@ export const FullExitDialog = ({
 							<span className='flex justify-between'>
 								<span>Funds in Positions:</span>
 								<span className='text-text-primary'>
-									{vault.inPositions.token0.toFixed(4)} {vault.poolKey.token0.symbol} + {vault.inPositions.token1.toFixed(4)} {vault.poolKey.token1.symbol}
+									{vault.inPositions.token0.toFixed(4)}{' '}
+									{vault.poolKey.token0.symbol} +{' '}
+									{vault.inPositions.token1.toFixed(4)}{' '}
+									{vault.poolKey.token1.symbol}
 								</span>
 							</span>
 						</span>
@@ -92,4 +95,3 @@ export const FullExitDialog = ({
 		</AlertDialog>
 	);
 };
-

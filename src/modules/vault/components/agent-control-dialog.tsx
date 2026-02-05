@@ -49,8 +49,7 @@ export const AgentControlDialog = ({
 			if (action === 'pause') {
 				await pauseAgent(vault.id);
 				toast.info('Agent Paused', {
-					description:
-						'Rebalancing has been suspended. Positions remain open.',
+					description: 'Rebalancing has been suspended. Positions remain open.',
 				});
 			}
 			if (action === 'resume') {
@@ -163,4 +162,3 @@ export const AgentControlDialog = ({
 		</AlertDialog>
 	);
 };
-

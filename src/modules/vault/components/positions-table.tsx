@@ -39,7 +39,9 @@ export const PositionsTable = ({ vault }: PositionsTableProps) => {
 		return (
 			<Card className='h-full flex flex-col border-border-default/50 bg-surface-card/50'>
 				<CardHeader className='py-3 px-4 border-b border-border-default/40'>
-					<CardTitle className='text-sm font-medium'>Active Positions</CardTitle>
+					<CardTitle className='text-sm font-medium'>
+						Active Positions
+					</CardTitle>
 				</CardHeader>
 				<CardContent className='flex-1 flex flex-col items-center justify-center text-center text-text-muted p-4'>
 					<div className='h-10 w-10 rounded-full bg-surface-elevated flex items-center justify-center mb-2 border border-border-default/30'>
@@ -60,7 +62,9 @@ export const PositionsTable = ({ vault }: PositionsTableProps) => {
 		<Card className='h-full border-border-default/50 bg-surface-card/50 backdrop-blur-sm'>
 			<CardHeader className='px-4 py-3 border-b border-border-default/40'>
 				<div className='flex items-center justify-between'>
-					<CardTitle className='text-sm font-medium'>Active Positions</CardTitle>
+					<CardTitle className='text-sm font-medium'>
+						Active Positions
+					</CardTitle>
 					<Badge
 						variant='secondary'
 						className='font-mono text-[10px] h-5 px-2 bg-surface-elevated border-border-default/50'
@@ -92,8 +96,7 @@ export const PositionsTable = ({ vault }: PositionsTableProps) => {
 										<td className='px-4 py-2 font-mono text-xs text-text-secondary group-hover:text-text-primary transition-colors'>
 											<div className='flex flex-col gap-0.5'>
 												<span className='font-medium text-text-primary'>
-													{formatPrice(priceLower)} -{' '}
-													{formatPrice(priceUpper)}
+													{formatPrice(priceLower)} - {formatPrice(priceUpper)}
 												</span>
 											</div>
 										</td>
@@ -124,4 +127,3 @@ export const PositionsTable = ({ vault }: PositionsTableProps) => {
 		</Card>
 	);
 };
-

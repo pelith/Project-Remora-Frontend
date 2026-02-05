@@ -1,16 +1,19 @@
-import { useAtomValue } from 'jotai';
 import { useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
-import { getVaultAtom } from '../stores/vault.store';
+import { useAtomValue } from 'jotai';
 import {
-	DepositSheet,
-	WithdrawSheet,
-	FullExitDialog,
-	AgentControlDialog,
-	SettingsSheet,
-	LiquidityChart,
-} from '../components';
+	ChevronLeft,
+	Download,
+	Pause,
+	PieChart,
+	Play,
+	Settings,
+	Trash2,
+	Upload,
+} from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { cn } from '@/lib/utils';
 import { Container } from '@/modules/common/components/layout/container';
+import { Badge } from '@/modules/common/components/ui/badge';
 import { Button } from '@/modules/common/components/ui/button';
 import {
 	Card,
@@ -18,18 +21,15 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/modules/common/components/ui/card';
-import { Badge } from '@/modules/common/components/ui/badge';
 import {
-	ChevronLeft,
-	Play,
-	Pause,
-	Settings,
-	Upload,
-	Download,
-	Trash2,
-	PieChart,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+	AgentControlDialog,
+	DepositSheet,
+	FullExitDialog,
+	LiquidityChart,
+	SettingsSheet,
+	WithdrawSheet,
+} from '../components';
+import { getVaultAtom } from '../stores/vault.store';
 import { formatCurrency, getMockPrice } from '../utils/vault-utils';
 
 interface VaultDetailContainerProps {
@@ -40,20 +40,24 @@ export default function VaultDetailContainer({
 	vaultId,
 }: VaultDetailContainerProps) {
 	const navigate = useNavigate();
-	const vault = useAtomValue(getVaultAtom(vaultId));
+	const getVault = useMemo(() => getVaultAtom(vaultId), [vaultId]);
+	const vault = useAtomValue(getVault);
 
 	const [isDepositOpen, setIsDepositOpen] = useState(false);
 	const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
 	const [isFullExitOpen, setIsFullExitOpen] = useState(false);
 	const [isAgentControlOpen, setIsAgentControlOpen] = useState(false);
 	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-	const [agentAction, setAgentAction] = useState<
-		'start' | 'pause' | 'resume'
-	>('start');
-	const [withdrawDefaults, setWithdrawDefaults] = useState<{
-		token0: string;
-		token1: string;
-	} | undefined>(undefined);
+	const [agentAction, setAgentAction] = useState<'start' | 'pause' | 'resume'>(
+		'start',
+	);
+	const [withdrawDefaults, setWithdrawDefaults] = useState<
+		| {
+				token0: string;
+				token1: string;
+		  }
+		| undefined
+	>(undefined);
 
 	if (!vault) {
 		return (
@@ -62,9 +66,7 @@ export default function VaultDetailContainer({
 					<h1 className='text-2xl font-bold text-text-primary mb-4'>
 						Vault not found
 					</h1>
-					<Button onClick={() => navigate({ to: '/vaults' })}>
-						Back to Vaults
-					</Button>
+					<Button onClick={() => navigate({ to: '/' })}>Back to Vaults</Button>
 				</div>
 			</Container>
 		);
@@ -109,7 +111,7 @@ export default function VaultDetailContainer({
 					<Button
 						variant='ghost'
 						className='pl-0 gap-1 text-white hover:text-primary -ml-2 h-auto py-0.5 mb-3 text-xs'
-						onClick={() => navigate({ to: '/vaults' })}
+						onClick={() => navigate({ to: '/' })}
 					>
 						<ChevronLeft className='w-3 h-3' /> Back to Vaults
 					</Button>
@@ -149,7 +151,7 @@ export default function VaultDetailContainer({
 						</div>
 					</div>
 
-					<div className='h-6 w-px bg-border-default/40 hidden sm:block'></div>
+					<div className='h-6 w-px bg-border-default/40 hidden sm:block' />
 
 					<div className='space-y-0.5'>
 						<div className='text-[10px] uppercase tracking-wider text-text-muted font-medium'>
@@ -160,7 +162,7 @@ export default function VaultDetailContainer({
 						</div>
 					</div>
 
-					<div className='h-6 w-px bg-border-default/40 hidden sm:block'></div>
+					<div className='h-6 w-px bg-border-default/40 hidden sm:block' />
 
 					<div className='space-y-0.5'>
 						<div className='text-[10px] uppercase tracking-wider text-text-muted font-medium'>
@@ -169,7 +171,7 @@ export default function VaultDetailContainer({
 						<div className='text-lg font-bold text-success'>12.4%</div>
 					</div>
 
-					<div className='h-6 w-px bg-border-default/40 hidden sm:block'></div>
+					<div className='h-6 w-px bg-border-default/40 hidden sm:block' />
 
 					<div className='space-y-0.5'>
 						<div className='text-[10px] uppercase tracking-wider text-text-muted font-medium'>
@@ -178,7 +180,7 @@ export default function VaultDetailContainer({
 						<div className='text-lg font-bold text-text-primary'>$245.80</div>
 					</div>
 
-					<div className='h-6 w-px bg-border-default/40 hidden sm:block'></div>
+					<div className='h-6 w-px bg-border-default/40 hidden sm:block' />
 
 					<div className='space-y-0.5'>
 						<div className='text-[10px] uppercase tracking-wider text-text-muted font-medium'>

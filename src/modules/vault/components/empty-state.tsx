@@ -11,10 +11,9 @@ export const EmptyState = () => {
 				No Vaults Found
 			</h3>
 			<p className='text-text-secondary max-w-sm mb-8'>
-				You haven't created any liquidity vaults yet. Deploy your first AI
-				agent to start earning.
+				You haven't created any liquidity vaults yet. Deploy your first AI agent
+				to start earning.
 			</p>
 		</Card>
 	);
 };
-

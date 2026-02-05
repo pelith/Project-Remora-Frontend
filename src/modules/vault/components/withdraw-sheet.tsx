@@ -118,8 +118,9 @@ export const WithdrawSheet = ({
 						<Alert className='bg-surface-elevated border-primary/20'>
 							<Info className='h-4 w-4 text-primary' />
 							<AlertDescription className='text-xs text-text-secondary'>
-								You can only withdraw <strong>idle funds</strong>. Funds actively
-								deployed in positions must be recalled first via "Full Exit".
+								You can only withdraw <strong>idle funds</strong>. Funds
+								actively deployed in positions must be recalled first via "Full
+								Exit".
 							</AlertDescription>
 						</Alert>
 
@@ -245,4 +246,3 @@ export const WithdrawSheet = ({
 		</>
 	);
 };
-

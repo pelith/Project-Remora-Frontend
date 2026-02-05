@@ -1,24 +1,14 @@
 import { useAtomValue } from 'jotai';
-import { useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
-import { vaultsAtom } from '../stores/vault.store';
-import {
-	EmptyState,
-	VaultCard,
-	CreateVaultSheet,
-} from '../components';
-import { Button } from '@/modules/common/components/ui/button';
-import { Container } from '@/modules/common/components/layout/container';
 import { Plus } from 'lucide-react';
+import { useState } from 'react';
+import { Container } from '@/modules/common/components/layout/container';
+import { Button } from '@/modules/common/components/ui/button';
+import { CreateVaultSheet, EmptyState, VaultCard } from '../components';
+import { vaultsAtom } from '../stores/vault.store';
 
 export default function VaultListContainer() {
 	const vaults = useAtomValue(vaultsAtom);
-	const navigate = useNavigate();
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
-
-	const handleVaultClick = (vaultId: string) => {
-		navigate({ to: '/vaults/$vaultId', params: { vaultId } });
-	};
 
 	// Skip wallet connection check for demo purposes
 
@@ -44,20 +34,12 @@ export default function VaultListContainer() {
 			) : (
 				<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
 					{vaults.map((vault) => (
-						<VaultCard
-							key={vault.id}
-							vault={vault}
-							onClick={() => handleVaultClick(vault.id)}
-						/>
+						<VaultCard key={vault.id} vault={vault} />
 					))}
 				</div>
 			)}
 
-			<CreateVaultSheet
-				open={isCreateOpen}
-				onOpenChange={setIsCreateOpen}
-			/>
+			<CreateVaultSheet open={isCreateOpen} onOpenChange={setIsCreateOpen} />
 		</Container>
 	);
 }
-

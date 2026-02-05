@@ -18,4 +18,3 @@ export const Container = ({ children, className }: ContainerProps) => {
 		</div>
 	);
 };
-

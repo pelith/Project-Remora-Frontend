@@ -113,4 +113,3 @@ export function formatCurrency(val: number): string {
 		maximumFractionDigits: 0,
 	}).format(val);
 }
-

@@ -4,4 +4,3 @@ export * from './components/vault-card';
 export * from './components/empty-state';
 export * from './stores/vault.store';
 export * from './constants/mock-pools';
-

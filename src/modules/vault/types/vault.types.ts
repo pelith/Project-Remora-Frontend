@@ -70,4 +70,3 @@ export interface CreateVaultFormData {
 		token1: string;
 	};
 }
-

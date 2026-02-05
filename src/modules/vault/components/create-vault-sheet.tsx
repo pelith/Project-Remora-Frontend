@@ -14,7 +14,10 @@ import {
 import { Button } from '@/modules/common/components/ui/button';
 import { Input } from '@/modules/common/components/ui/input';
 import { Label } from '@/modules/common/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/modules/common/components/ui/radio-group';
+import {
+	RadioGroup,
+	RadioGroupItem,
+} from '@/modules/common/components/ui/radio-group';
 import { Switch } from '@/modules/common/components/ui/switch';
 import { Card } from '@/modules/common/components/ui/card';
 import { Badge } from '@/modules/common/components/ui/badge';
@@ -48,7 +51,7 @@ export const CreateVaultSheet = ({
 	const [lastLimit, setLastLimit] = useState('5');
 	const createVault = useSetAtom(createVaultAtom);
 	const isLoading = useAtomValue(isLoadingAtom);
-	
+
 	// Mock wallet connection for demo
 	const isConnected = true;
 
@@ -65,11 +68,7 @@ export const CreateVaultSheet = ({
 		return basePrice * (1 + tick / 10000);
 	};
 
-	const getRangeDisplay = (
-		lower: number,
-		upper: number,
-		basePrice: number,
-	) => {
+	const getRangeDisplay = (lower: number, upper: number, basePrice: number) => {
 		const p1 = getPriceFromTick(lower, basePrice);
 		const p2 = getPriceFromTick(upper, basePrice);
 		return `${formatPrice(p1)} - ${formatPrice(p2)}`;
@@ -78,7 +77,7 @@ export const CreateVaultSheet = ({
 	const getTickFromPrice = (price: number, basePrice: number) => {
 		// Inverse of getPriceFromTick: tick = ((price / basePrice) - 1) * 10000
 		if (basePrice === 0) return 0;
-		return Math.round(((price / basePrice - 1) * 10000));
+		return Math.round((price / basePrice - 1) * 10000);
 	};
 
 	const handleNext = () => setStep((prev) => prev + 1);
@@ -167,9 +166,7 @@ export const CreateVaultSheet = ({
 			// Basic check: must deposit something
 			const val0 = parseFloat(formData.depositAmount.token0);
 			const val1 = parseFloat(formData.depositAmount.token1);
-			return (
-				(isNaN(val0) || val0 <= 0) && (isNaN(val1) || val1 <= 0)
-			);
+			return (isNaN(val0) || val0 <= 0) && (isNaN(val1) || val1 <= 0);
 		}
 		return false;
 	};
@@ -232,8 +229,8 @@ export const CreateVaultSheet = ({
 							<Alert className='bg-primary/5 border-primary/20 mb-4 py-2 px-3'>
 								<Info className='h-4 w-4 text-primary' />
 								<AlertDescription className='text-xs text-text-secondary ml-2'>
-									The Agent uses this price range to determine where to place grid
-									orders.
+									The Agent uses this price range to determine where to place
+									grid orders.
 								</AlertDescription>
 							</Alert>
 
@@ -512,8 +509,8 @@ export const CreateVaultSheet = ({
 
 						<div className='bg-primary/10 border border-primary/20 rounded-md p-3'>
 							<p className='text-xs text-primary'>
-								Note: Mock environment uses simplified balance checks. Ensure you
-								don't exceed your mock wallet limits.
+								Note: Mock environment uses simplified balance checks. Ensure
+								you don't exceed your mock wallet limits.
 							</p>
 						</div>
 					</div>
@@ -604,8 +601,7 @@ export const CreateVaultSheet = ({
 					</div>
 					<SheetDescription>
 						{step === 1 && 'Choose a liquidity pool for your new Vault.'}
-						{step === 2 &&
-							'Configure how the AI Agent manages your positions.'}
+						{step === 2 && 'Configure how the AI Agent manages your positions.'}
 						{step === 3 && 'Deposit assets to initialize the Vault.'}
 						{step === 4 && 'Review details and approve transaction.'}
 					</SheetDescription>
@@ -639,8 +635,7 @@ export const CreateVaultSheet = ({
 						>
 							{isLoading ? (
 								<>
-									Creating{' '}
-									<Loader2 className='w-4 h-4 ml-2 animate-spin' />
+									Creating <Loader2 className='w-4 h-4 ml-2 animate-spin' />
 								</>
 							) : (
 								<>
@@ -654,4 +649,3 @@ export const CreateVaultSheet = ({
 		</Sheet>
 	);
 };
-

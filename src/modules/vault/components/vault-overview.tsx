@@ -60,7 +60,10 @@ export const VaultOverview = ({
 					</CardTitle>
 					<p className='text-sm text-text-muted'>ID: {vault.id}</p>
 				</div>
-				<Badge variant={getBadgeVariant(vault.agentStatus)} className='text-sm px-3 py-1'>
+				<Badge
+					variant={getBadgeVariant(vault.agentStatus)}
+					className='text-sm px-3 py-1'
+				>
 					{getStatusLabel(vault.agentStatus)}
 				</Badge>
 			</CardHeader>
@@ -145,9 +148,7 @@ export const VaultOverview = ({
 							</Button>
 						) : (
 							<Button
-								variant={
-									vault.agentStatus === 'paused' ? 'default' : 'outline'
-								}
+								variant={vault.agentStatus === 'paused' ? 'default' : 'outline'}
 								onClick={() =>
 									onAgentControl(
 										vault.agentStatus === 'paused' ? 'resume' : 'start',
@@ -187,4 +188,3 @@ export const VaultOverview = ({
 		</Card>
 	);
 };
-

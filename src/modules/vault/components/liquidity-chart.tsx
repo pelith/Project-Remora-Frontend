@@ -47,10 +47,8 @@ export const LiquidityChart = ({ vault }: LiquidityChartProps) => {
 									const isCore = idx === 0;
 
 									// Calculate absolute prices from BPS ticks
-									const priceLower =
-										currentPrice * (1 + pos.tickLower / 10000);
-									const priceUpper =
-										currentPrice * (1 + pos.tickUpper / 10000);
+									const priceLower = currentPrice * (1 + pos.tickLower / 10000);
+									const priceUpper = currentPrice * (1 + pos.tickUpper / 10000);
 
 									const realLower = Math.min(priceLower, priceUpper);
 									const realUpper = Math.max(priceLower, priceUpper);
@@ -122,4 +120,3 @@ export const LiquidityChart = ({ vault }: LiquidityChartProps) => {
 		</div>
 	);
 };
-

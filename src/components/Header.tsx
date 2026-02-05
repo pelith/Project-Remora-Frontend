@@ -1,107 +1,79 @@
+import {
+	useAppKit,
+	useAppKitAccount,
+	useDisconnect,
+} from '@reown/appkit/react';
 import { Link } from '@tanstack/react-router';
-import { Home, Menu, Network, Wallet, X } from 'lucide-react';
-import { useState } from 'react';
+import { Wallet } from 'lucide-react';
+import { useCallback, useMemo } from 'react';
+import { cn } from '@/lib/utils';
+import { Container } from '@/modules/common/components/layout/container';
+import { Button } from '@/modules/common/components/ui/button';
 
 export default function Header() {
-	const [isOpen, setIsOpen] = useState(false);
+	const { open } = useAppKit();
+	const { address, isConnected } = useAppKitAccount();
+	const { disconnect } = useDisconnect();
+
+	const handleConnect = useCallback(() => {
+		open({ view: 'Connect', namespace: 'eip155' });
+	}, [open]);
+
+	const formattedAddress = useMemo(() => {
+		if (!address) {
+			return '';
+		}
+		return `${address.slice(0, 6)}...${address.slice(-4)}`;
+	}, [address]);
+
+	function handleDisconnect() {
+		confirm('Are you sure you want to disconnect?');
+		disconnect();
+	}
 
 	return (
-		<>
-			<header className='p-4 flex items-center bg-gray-800 text-white shadow-lg'>
-				<button
-					type='button'
-					onClick={() => setIsOpen(true)}
-					className='p-2 hover:bg-gray-700 rounded-lg transition-colors'
-					aria-label='Open menu'
-				>
-					<Menu size={24} />
-				</button>
-				<h1 className='ml-4 text-xl font-semibold'>
-					<Link to='/'>
-						<img
-							src='/tanstack-word-logo-white.svg'
-							alt='TanStack Logo'
-							className='h-10'
-						/>
-					</Link>
-				</h1>
-			</header>
+		<header className='sticky top-0 z-50 w-full border-b border-border-default bg-background/80 backdrop-blur supports-backdrop-filter:bg-background/60'>
+			<Container>
+				<div className='flex h-16 items-center justify-between gap-4'>
+					<div className='flex items-center gap-4'>
+						<Link
+							to='/'
+							className='flex items-center gap-2 hover:opacity-90 transition-opacity'
+						>
+							<img
+								src='android-chrome-192x192.png'
+								alt='Agentic Vault'
+								className='h-8 w-8 rounded-full'
+							/>
+							<span className='text-lg font-bold text-text-primary tracking-tight'>
+								Agentic
+								<span className='text-primary drop-shadow-[0_0_8px_rgba(255,51,133,0.5)]'>
+									Vault
+								</span>
+							</span>
+						</Link>
+					</div>
 
-			<aside
-				className={`fixed top-0 left-0 h-full w-80 bg-gray-900 text-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out flex flex-col ${
-					isOpen ? 'translate-x-0' : '-translate-x-full'
-				}`}
-			>
-				<div className='flex items-center justify-between p-4 border-b border-gray-700'>
-					<h2 className='text-xl font-bold'>Navigation</h2>
-					<button
-						type='button'
-						onClick={() => setIsOpen(false)}
-						className='p-2 hover:bg-gray-800 rounded-lg transition-colors'
-						aria-label='Close menu'
-					>
-						<X size={24} />
-					</button>
+					<div className='flex items-center gap-3'>
+						{isConnected && address ? (
+							<div
+								className={cn(
+									'flex items-center gap-2 bg-surface-elevated border border-border-default rounded-full px-3 py-1 text-sm font-mono text-text-secondary cursor-pointer hover:bg-surface-elevated/80 transition-colors',
+								)}
+								onClickCapture={handleDisconnect}
+							>
+								<div className='h-2 w-2 rounded-full bg-success animate-pulse' />
+								<span>{formattedAddress}</span>
+							</div>
+						) : (
+							<Button onClick={handleConnect} className='gap-2'>
+								<Wallet className='h-4 w-4' />
+								Connect Wallet
+							</Button>
+						)}
+					</div>
 				</div>
-
-				<nav className='flex-1 p-4 overflow-y-auto'>
-					<Link
-						to='/'
-						onClick={() => setIsOpen(false)}
-						className='flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 transition-colors mb-2'
-						activeProps={{
-							className:
-								'flex items-center gap-3 p-3 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors mb-2',
-						}}
-					>
-						<Home size={20} />
-						<span className='font-medium'>Home</span>
-					</Link>
-
-					<Link
-						to='/vaults'
-						onClick={() => setIsOpen(false)}
-						className='flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 transition-colors mb-2'
-						activeProps={{
-							className:
-								'flex items-center gap-3 p-3 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors mb-2',
-						}}
-					>
-						<Wallet size={20} />
-						<span className='font-medium'>Vaults</span>
-					</Link>
-
-					<Link
-						to='/connect-wallet'
-						onClick={() => setIsOpen(false)}
-						className='flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 transition-colors mb-2'
-						activeProps={{
-							className:
-								'flex items-center gap-3 p-3 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors mb-2',
-						}}
-					>
-						<Wallet size={20} />
-						<span className='font-medium'>Connect Wallet</span>
-					</Link>
-
-					{/* Demo Links Start */}
-
-					<Link
-						to='/demo/tanstack-query'
-						onClick={() => setIsOpen(false)}
-						className='flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 transition-colors mb-2'
-						activeProps={{
-							className:
-								'flex items-center gap-3 p-3 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors mb-2',
-						}}
-					>
-						<Network size={20} />
-						<span className='font-medium'>TanStack Query</span>
-					</Link>
-
-					{/* Demo Links End */}
-				</nav>
-			</aside>
-		</>
+			</Container>
+		</header>
 	);
 }

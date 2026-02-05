@@ -34,4 +34,3 @@ export const MOCK_POOLS: Pool[] = [
 		tvl: '$22.8M',
 	},
 ];
-
