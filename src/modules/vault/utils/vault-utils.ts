@@ -1,16 +1,22 @@
 import type { Pool, Position } from '../types/vault.types';
 
 export function getMockPrice(symbol: string): number {
-	if (symbol === 'ETH') return 2500;
+	// Using realistic prices based on market data
+	if (symbol === 'ETH') return 2138.11; // Match the chart peak price
 	if (symbol === 'WBTC') return 45000;
 	if (symbol === 'USDC' || symbol === 'USDT') return 1;
 	if (symbol === 'UNI') return 10;
 	return 0;
 }
 
+/**
+ * Generate realistic positions that mimic market liquidity distribution
+ * Positions are deployed at liquidity peaks to maximize efficiency
+ */
 export function generateMockPositions(
 	totalUSD: number,
 	maxPositions: number,
+	currentPrice: number = 2138.11, // Default ETH price matching chart peak
 ): Position[] {
 	// If maxPositions is 0 (Unlimited), default to 5 for the demo
 	const k = maxPositions === 0 ? 5 : Math.max(1, maxPositions);
@@ -18,65 +24,69 @@ export function generateMockPositions(
 	const positions: Position[] = [];
 	const now = Date.now();
 
-	// Strategy: "Concentrated Sniper"
-	// Instead of wide blocks, we create narrow, high-density liquidity ranges.
+	// Strategy: "Market-Aligned Deployment"
+	// Deploy positions at market liquidity peaks for optimal capital efficiency
 
-	// 1. Core Position (Active Market Making)
-	// Very tight range around current price to capture high fees.
-	// ~0.6% width (+/- 30 BPS)
-	const coreRatio = k === 1 ? 1 : 0.5; // 50% capital in active range
-	const coreUSD = totalUSD * coreRatio;
-	const coreHalfWidth = 30; // 0.3%
+	// Define liquidity peaks (same as market generation logic)
+	const mainPeak = {
+		center: currentPrice,
+		strength: 1.0, // Relative strength
+		spread: 25, // Price units
+	};
 
-	positions.push({
-		id: `pos-${now}-0`,
-		tickLower: -coreHalfWidth,
-		tickUpper: coreHalfWidth,
-		liquidityUSD: coreUSD,
-		inRange: true,
-	});
+	const secondaryPeaks = [
+		{ center: currentPrice * 0.98, strength: 0.35, spread: 18 }, // -2%
+		{ center: currentPrice * 1.02, strength: 0.3, spread: 18 }, // +2%
+		{ center: currentPrice * 0.96, strength: 0.18, spread: 15 }, // -4%
+		{ center: currentPrice * 1.04, strength: 0.15, spread: 15 }, // +4%
+	];
 
-	if (k === 1) return positions;
+	// Small peak at higher price (right side)
+	const highPricePeak = {
+		center: currentPrice * 1.07, // +7% from current
+		strength: 0.12, // Smaller strength
+		spread: 12,
+	};
 
-	// 2. Satellite Positions (Limit Orders / Rebalancing Zones)
-	// These should be positioned at "Support" and "Resistance" levels, not immediately adjacent.
-	const remainingUSD = totalUSD * (1 - coreRatio);
-	const remainingCount = k - 1;
-	const usdPerPosition = remainingUSD / remainingCount;
+	// Combine all peaks and take first k peaks
+	// Prioritize: main peak first, then secondary peaks, then high price peak
+	const allPeaks = [
+		mainPeak,
+		...secondaryPeaks,
+		highPricePeak,
+	].slice(0, k);
 
-	for (let i = 0; i < remainingCount; i++) {
-		const isUpper = i % 2 === 0;
-		const level = Math.floor(i / 2) + 1;
+	// Allocate capital based on peak strength
+	const totalStrength = allPeaks.reduce((sum, p) => sum + p.strength, 0);
 
-		// Gap logic: Leave some empty space between positions to show "Ranges"
-		// Level 1: +/- 1.5% away
-		// Level 2: +/- 3.0% away
-		const distanceToMid = 150 * level; // 1.5% steps
-		const width = 60; // Narrow 0.6% width for satellites
+	allPeaks.forEach((peak, idx) => {
+		// Capital allocation proportional to peak strength
+		const capitalRatio = peak.strength / totalStrength;
+		const positionUSD = totalUSD * capitalRatio;
 
-		let tLower: number;
-		let tUpper: number;
+		// Position width: tighter around main peak, wider for satellites
+		const isMainPeak = idx === 0;
+		const widthBPS = isMainPeak ? 60 : 80; // 0.6% for main, 0.8% for others
+		const halfWidthBPS = widthBPS / 2;
 
-		if (isUpper) {
-			// Resistance Zone (Sell High)
-			// e.g., +150 to +210 BPS
-			tLower = distanceToMid;
-			tUpper = distanceToMid + width;
-		} else {
-			// Support Zone (Buy Low)
-			// e.g., -210 to -150 BPS
-			tLower = -(distanceToMid + width);
-			tUpper = -distanceToMid;
-		}
+		// Calculate tick range relative to current price
+		const priceOffset = (peak.center - currentPrice) / currentPrice;
+		const tickCenter = priceOffset * 10000; // Convert to BPS
+
+		const tickLower = Math.round(tickCenter - halfWidthBPS);
+		const tickUpper = Math.round(tickCenter + halfWidthBPS);
+
+		// Check if current price is in range
+		const inRange = Math.abs(tickCenter) <= halfWidthBPS;
 
 		positions.push({
-			id: `pos-${now}-${i + 1}`,
-			tickLower: tLower,
-			tickUpper: tUpper,
-			liquidityUSD: usdPerPosition,
-			inRange: false,
+			id: `pos-${now}-${idx}`,
+			tickLower,
+			tickUpper,
+			liquidityUSD: positionUSD,
+			inRange,
 		});
-	}
+	});
 
 	return positions;
 }
@@ -92,13 +102,13 @@ export function calculateInitialTVL(
 	let price0 = 0;
 	let price1 = 0;
 
-	if (pool.token0.symbol === 'ETH') price0 = 2500;
+	if (pool.token0.symbol === 'ETH') price0 = 2138.11;
 	if (pool.token0.symbol === 'WBTC') price0 = 45000;
 	if (pool.token0.symbol === 'USDC' || pool.token0.symbol === 'USDT')
 		price0 = 1;
 	if (pool.token0.symbol === 'UNI') price0 = 10;
 
-	if (pool.token1.symbol === 'ETH') price1 = 2500;
+	if (pool.token1.symbol === 'ETH') price1 = 2138.11;
 	if (pool.token1.symbol === 'WBTC') price1 = 45000;
 	if (pool.token1.symbol === 'USDC' || pool.token1.symbol === 'USDT')
 		price1 = 1;

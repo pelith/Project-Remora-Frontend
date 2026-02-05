@@ -62,8 +62,8 @@ export function calculateSmartRightAxisMax(
 }
 
 /**
- * Generate mock market liquidity data based on vault configuration
- * Creates liquidity peaks around key price points
+ * Generate realistic market liquidity data based on vault configuration
+ * Creates liquidity peaks around current price, mimicking real Uniswap v3 pools
  */
 function generateMarketLiquidity(
 	priceRange: number[],
@@ -71,38 +71,69 @@ function generateMarketLiquidity(
 ): number[] {
 	const marketLiquidity: number[] = [];
 
-	// Create liquidity peaks around current price and nearby levels
-	const liquidityPeaks = [
+	// Create more realistic liquidity distribution:
+	// 1. Main peak at current price (highest liquidity)
+	// 2. Secondary peaks at support/resistance levels
+	// 3. Small peak at higher price (right side)
+	// 4. Gradual decay away from peaks
+	
+	const mainPeak = {
+		center: currentPrice,
+		strength: 35000 + Math.random() * 5000, // 35K-40K at peak
+		spread: 20 + Math.random() * 10, // 20-30 price units spread
+	};
+
+	// Secondary peaks at ±2% and ±4% from current price
+	const secondaryPeaks = [
 		{
-			center: currentPrice * 0.95, // -5% from current
-			strength: 16000,
-			spread: 25,
+			center: currentPrice * 0.98, // -2%
+			strength: 12000 + Math.random() * 3000,
+			spread: 15 + Math.random() * 5,
 		},
 		{
-			center: currentPrice, // Current price
-			strength: 28000,
-			spread: 30,
+			center: currentPrice * 1.02, // +2%
+			strength: 10000 + Math.random() * 3000,
+			spread: 15 + Math.random() * 5,
 		},
 		{
-			center: currentPrice * 1.05, // +5% from current
-			strength: 11000,
-			spread: 35,
+			center: currentPrice * 0.96, // -4%
+			strength: 6000 + Math.random() * 2000,
+			spread: 12 + Math.random() * 5,
+		},
+		{
+			center: currentPrice * 1.04, // +4%
+			strength: 5000 + Math.random() * 2000,
+			spread: 12 + Math.random() * 5,
 		},
 	];
 
+	// Small peak at higher price (around +6-8% from current)
+	const highPricePeak = {
+		center: currentPrice * 1.07, // +7% from current
+		strength: 4000 + Math.random() * 2000, // Smaller peak
+		spread: 10 + Math.random() * 5, // Narrower spread
+	};
+
+	const allPeaks = [mainPeak, ...secondaryPeaks, highPricePeak];
+
 	priceRange.forEach((price) => {
 		let totalLiquidity = 0;
-		liquidityPeaks.forEach((peak) => {
+		
+		// Sum contributions from all peaks using Gaussian distribution
+		allPeaks.forEach((peak) => {
 			const distance = Math.abs(price - peak.center);
-			totalLiquidity +=
-				peak.strength * Math.exp(-Math.pow(distance / peak.spread, 2));
+			const normalizedDistance = distance / peak.spread;
+			// Gaussian: exp(-(x/σ)²)
+			const contribution = peak.strength * Math.exp(-Math.pow(normalizedDistance, 2));
+			totalLiquidity += contribution;
 		});
-		totalLiquidity *= 0.9 + Math.random() * 0.2;
 
-		const isInPeakRegion = liquidityPeaks.some(
-			(p) => Math.abs(price - p.center) < p.spread * 1.5,
-		);
-		if (!isInPeakRegion) totalLiquidity *= 0.2;
+		// Add some noise but keep it realistic
+		totalLiquidity *= 0.95 + Math.random() * 0.1;
+
+		// Ensure minimum liquidity (even outside peaks)
+		const minLiquidity = 500 + Math.random() * 500;
+		totalLiquidity = Math.max(totalLiquidity, minLiquidity);
 
 		marketLiquidity.push(totalLiquidity);
 	});
@@ -160,6 +191,7 @@ function generatePriceRange(
  * Generate complete liquidity chart data from vault
  */
 export function generateLiquidityChartData(vault: Vault): LiquidityChartData {
+	// Use current price matching the chart peak (2138.11 for ETH/USDC)
 	const currentPrice = getMockPrice(vault.poolKey.token0.symbol);
 
 	// Generate price range based on vault config
