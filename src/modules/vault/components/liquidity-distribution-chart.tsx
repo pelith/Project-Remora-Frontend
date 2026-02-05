@@ -273,13 +273,13 @@ export const LiquidityDistributionChart = ({
 			const data = generateLiquidityChartData(vault);
 			// Debug: Log positions data
 			if (data.agentPositions.length === 0) {
-				console.warn('No agent positions found in vault:', vault.positions);
+				console.log('No agent positions - chart will show empty state');
 			} else {
 				console.log('Agent positions for chart:', data.agentPositions);
 			}
 			return data;
 		},
-		[vault],
+		[vault, vault.positions.length, vault.agentStatus],
 	);
 
 	const overlayPlugin = useMemo(
