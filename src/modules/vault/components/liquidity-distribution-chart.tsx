@@ -287,11 +287,11 @@ export const LiquidityDistributionChart = ({
 		[chartData],
 	);
 
-	// Force chart update when vault data changes
-	// Using key prop to force re-render when positions or agent status changes
+	// Force chart re-render when vault positions or agent status changes
+	// Using key prop to ensure chart updates when data changes
 	const chartKey = useMemo(
-		() => `chart-${vault.id}-${vault.positions.length}-${vault.agentStatus}-${Date.now()}`,
-		[vault.id, vault.positions.length, vault.agentStatus],
+		() => `chart-${vault.id}-${vault.positions.length}-${vault.agentStatus}-${vault.positions.map(p => p.id).join('-')}`,
+		[vault.id, vault.positions.length, vault.agentStatus, vault.positions],
 	);
 
 	// Prepare Chart.js data
