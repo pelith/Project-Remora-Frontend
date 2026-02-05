@@ -46,7 +46,7 @@ function createOverlayPlugin(
 			const MIN_HEIGHT_PX = 20;
 
 			// Draw Agent Position Boxes
-			chartData.agentPositions.forEach((position) => {
+			chartData.agentPositions.forEach((position, idx) => {
 				const lowerIndex = chartData.rawLabels.findIndex(
 					(p) => p >= position.tickLower,
 				);
@@ -54,11 +54,24 @@ function createOverlayPlugin(
 					(p) => p >= position.tickUpper,
 				);
 
-				if (lowerIndex === -1 || upperIndex === -1) return;
+				if (lowerIndex === -1 || upperIndex === -1) {
+					console.warn(`Position ${idx}: Could not find indices`, {
+						tickLower: position.tickLower,
+						tickUpper: position.tickUpper,
+						priceRange: [chartData.rawLabels[0], chartData.rawLabels[chartData.rawLabels.length - 1]],
+					});
+					return;
+				}
 
-				const leftX = xAxis.getPixelForValue(lowerIndex);
-				const rightX = xAxis.getPixelForValue(upperIndex);
+				// Use label value instead of index for getPixelForValue
+				const leftX = xAxis.getPixelForValue(chartData.labels[lowerIndex]);
+				const rightX = xAxis.getPixelForValue(chartData.labels[upperIndex]);
 				const width = rightX - leftX;
+
+				if (width <= 0) {
+					console.warn(`Position ${idx}: Invalid width`, { leftX, rightX, width });
+					return;
+				}
 
 				const chartHeight = yAxisRight.bottom - yAxisRight.top;
 				const heightRatio = position.liquidity / chartData.rightYMax;
@@ -66,7 +79,7 @@ function createOverlayPlugin(
 
 				// Find minimum market liquidity height in range
 				let minMarketHeightInRange = Infinity;
-				for (let i = lowerIndex; i <= upperIndex; i++) {
+				for (let i = lowerIndex; i <= upperIndex && i < chartData.marketLiquidity.length; i++) {
 					const marketHeightRatio =
 						chartData.marketLiquidity[i] / chartData.leftYMax;
 					const marketHeight = chartHeight * marketHeightRatio;
@@ -77,7 +90,21 @@ function createOverlayPlugin(
 
 				// Apply constraints: calculated height, min height, max market height
 				let finalHeight = Math.max(calculatedHeight, MIN_HEIGHT_PX);
-				finalHeight = Math.min(finalHeight, minMarketHeightInRange);
+				if (minMarketHeightInRange !== Infinity) {
+					finalHeight = Math.min(finalHeight, minMarketHeightInRange);
+				}
+
+				// Ensure height is valid
+				if (finalHeight <= 0) {
+					console.warn(`Position ${idx}: Invalid height`, {
+						calculatedHeight,
+						minMarketHeightInRange,
+						finalHeight,
+						liquidity: position.liquidity,
+						rightYMax: chartData.rightYMax,
+					});
+					finalHeight = MIN_HEIGHT_PX; // Fallback to minimum
+				}
 
 				const topY = yAxisRight.bottom - finalHeight;
 
@@ -106,8 +133,8 @@ function createOverlayPlugin(
 			);
 
 			if (allowedLowerIndex !== -1 && allowedUpperIndex !== -1) {
-				const leftX = xAxis.getPixelForValue(allowedLowerIndex);
-				const rightX = xAxis.getPixelForValue(allowedUpperIndex);
+				const leftX = xAxis.getPixelForValue(chartData.labels[allowedLowerIndex]);
+				const rightX = xAxis.getPixelForValue(chartData.labels[allowedUpperIndex]);
 
 				ctx.save();
 
@@ -161,7 +188,7 @@ function createOverlayPlugin(
 			}
 
 			// Draw Current Price Line
-			const currentX = xAxis.getPixelForValue(chartData.currentPriceIndex);
+			const currentX = xAxis.getPixelForValue(chartData.labels[chartData.currentPriceIndex]);
 			const currentPrice =
 				chartData.rawLabels[chartData.currentPriceIndex];
 			const inRange = chartData.agentPositions.some(
