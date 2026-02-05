@@ -54,8 +54,9 @@ export function calculateSmartRightAxisMax(
 
 	// Return maximum constraint (strictest limit) to ensure all positions satisfy
 	// Add a reasonable upper bound to prevent extreme scaling
-	const calculatedMax = constraints.length > 0 ? Math.max(...constraints) : 1000;
-	const maxLiquidity = Math.max(...agentPositions.map(p => p.liquidity));
+	const calculatedMax =
+		constraints.length > 0 ? Math.max(...constraints) : 1000;
+	const maxLiquidity = Math.max(...agentPositions.map((p) => p.liquidity));
 	// Use a multiplier (e.g., 1.2x) of max position liquidity as upper bound
 	const reasonableMax = maxLiquidity * 1.5;
 	return Math.min(calculatedMax, reasonableMax);
@@ -76,7 +77,7 @@ function generateMarketLiquidity(
 	// 2. Secondary peaks at support/resistance levels
 	// 3. Small peak at higher price (right side)
 	// 4. Gradual decay away from peaks
-	
+
 	const mainPeak = {
 		center: currentPrice,
 		strength: 35000 + Math.random() * 5000, // 35K-40K at peak
@@ -118,13 +119,14 @@ function generateMarketLiquidity(
 
 	priceRange.forEach((price) => {
 		let totalLiquidity = 0;
-		
+
 		// Sum contributions from all peaks using Gaussian distribution
 		allPeaks.forEach((peak) => {
 			const distance = Math.abs(price - peak.center);
 			const normalizedDistance = distance / peak.spread;
 			// Gaussian: exp(-(x/σ)²)
-			const contribution = peak.strength * Math.exp(-Math.pow(normalizedDistance, 2));
+			const contribution =
+				peak.strength * Math.exp(-Math.pow(normalizedDistance, 2));
 			totalLiquidity += contribution;
 		});
 
@@ -220,15 +222,11 @@ export function generateLiquidityChartData(vault: Vault): LiquidityChartData {
 	);
 
 	// Find current price index
-	const currentPriceIndex = priceRange.findIndex(
-		(p) => p >= currentPrice,
-	);
+	const currentPriceIndex = priceRange.findIndex((p) => p >= currentPrice);
 
 	// Calculate allowed price range
-	const allowedLowerPrice =
-		currentPrice * (1 + vault.config.tickLower / 10000);
-	const allowedUpperPrice =
-		currentPrice * (1 + vault.config.tickUpper / 10000);
+	const allowedLowerPrice = currentPrice * (1 + vault.config.tickLower / 10000);
+	const allowedUpperPrice = currentPrice * (1 + vault.config.tickUpper / 10000);
 
 	return {
 		labels: priceRange.map((p) => `$${p.toLocaleString()}`),
@@ -242,4 +240,3 @@ export function generateLiquidityChartData(vault: Vault): LiquidityChartData {
 		allowedUpperPrice,
 	};
 }
-

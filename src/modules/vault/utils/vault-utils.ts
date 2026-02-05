@@ -50,11 +50,7 @@ export function generateMockPositions(
 
 	// Combine all peaks and take first k peaks
 	// Prioritize: main peak first, then secondary peaks, then high price peak
-	const allPeaks = [
-		mainPeak,
-		...secondaryPeaks,
-		highPricePeak,
-	].slice(0, k);
+	const allPeaks = [mainPeak, ...secondaryPeaks, highPricePeak].slice(0, k);
 
 	// Allocate capital based on peak strength
 	const totalStrength = allPeaks.reduce((sum, p) => sum + p.strength, 0);

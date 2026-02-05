@@ -1,12 +1,3 @@
----
-name: react-architect-skills
-description: React and TanStack Router folder structure and feature-module architecture. Use when writing, reviewing, or refactoring React code for structure, naming, colocation, encapsulation, and layer separation. Triggers on React folder structure, naming rules, module boundaries, or architecture decisions.
-license: MIT
-metadata:
-  author: paul-devv
-  version: "1.1.0"
----
-
 # React Feature Module Architecture Guidelines
 
 ## Architectural Principles

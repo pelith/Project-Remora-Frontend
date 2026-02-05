@@ -1,148 +1,423 @@
-import { POOL_KEY_COMPONENTS } from './pool-key';
-
 export const V4_AGENTIC_VAULT_FACTORY_ABI = [
 	{
 		type: 'constructor',
-		stateMutability: 'nonpayable',
 		inputs: [
-			{ name: '_posm', type: 'address' },
-			{ name: '_universalRouter', type: 'address' },
-			{ name: '_permit2', type: 'address' },
+			{
+				name: '_posm',
+				type: 'address',
+				internalType: 'address',
+			},
+			{
+				name: '_universalRouter',
+				type: 'address',
+				internalType: 'address',
+			},
+			{
+				name: '_permit2',
+				type: 'address',
+				internalType: 'address',
+			},
 		],
+		stateMutability: 'nonpayable',
+	},
+	{
+		type: 'function',
+		name: 'computeVaultAddress',
+		inputs: [
+			{
+				name: 'creator',
+				type: 'address',
+				internalType: 'address',
+			},
+			{
+				name: 'poolKey',
+				type: 'tuple',
+				internalType: 'struct PoolKey',
+				components: [
+					{
+						name: 'currency0',
+						type: 'address',
+						internalType: 'Currency',
+					},
+					{
+						name: 'currency1',
+						type: 'address',
+						internalType: 'Currency',
+					},
+					{
+						name: 'fee',
+						type: 'uint24',
+						internalType: 'uint24',
+					},
+					{
+						name: 'tickSpacing',
+						type: 'int24',
+						internalType: 'int24',
+					},
+					{
+						name: 'hooks',
+						type: 'address',
+						internalType: 'contract IHooks',
+					},
+				],
+			},
+			{
+				name: 'nonce',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+			{
+				name: 'agent',
+				type: 'address',
+				internalType: 'address',
+			},
+			{
+				name: 'allowedTickLower',
+				type: 'int24',
+				internalType: 'int24',
+			},
+			{
+				name: 'allowedTickUpper',
+				type: 'int24',
+				internalType: 'int24',
+			},
+			{
+				name: 'swapAllowed',
+				type: 'bool',
+				internalType: 'bool',
+			},
+			{
+				name: 'maxPositionsK',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+		],
+		outputs: [
+			{
+				name: '',
+				type: 'address',
+				internalType: 'address',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'createVault',
+		inputs: [
+			{
+				name: 'poolKey',
+				type: 'tuple',
+				internalType: 'struct PoolKey',
+				components: [
+					{
+						name: 'currency0',
+						type: 'address',
+						internalType: 'Currency',
+					},
+					{
+						name: 'currency1',
+						type: 'address',
+						internalType: 'Currency',
+					},
+					{
+						name: 'fee',
+						type: 'uint24',
+						internalType: 'uint24',
+					},
+					{
+						name: 'tickSpacing',
+						type: 'int24',
+						internalType: 'int24',
+					},
+					{
+						name: 'hooks',
+						type: 'address',
+						internalType: 'contract IHooks',
+					},
+				],
+			},
+			{
+				name: 'agent',
+				type: 'address',
+				internalType: 'address',
+			},
+			{
+				name: 'allowedTickLower',
+				type: 'int24',
+				internalType: 'int24',
+			},
+			{
+				name: 'allowedTickUpper',
+				type: 'int24',
+				internalType: 'int24',
+			},
+			{
+				name: 'swapAllowed',
+				type: 'bool',
+				internalType: 'bool',
+			},
+			{
+				name: 'maxPositionsK',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+		],
+		outputs: [
+			{
+				name: 'vault',
+				type: 'address',
+				internalType: 'address',
+			},
+		],
+		stateMutability: 'nonpayable',
+	},
+	{
+		type: 'function',
+		name: 'creatorNonce',
+		inputs: [
+			{
+				name: '',
+				type: 'address',
+				internalType: 'address',
+			},
+		],
+		outputs: [
+			{
+				name: '',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'getAllVaults',
+		inputs: [],
+		outputs: [
+			{
+				name: '',
+				type: 'address[]',
+				internalType: 'address[]',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'getNextNonce',
+		inputs: [
+			{
+				name: 'creator',
+				type: 'address',
+				internalType: 'address',
+			},
+		],
+		outputs: [
+			{
+				name: '',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'getVaultsCreatedBy',
+		inputs: [
+			{
+				name: 'creator',
+				type: 'address',
+				internalType: 'address',
+			},
+		],
+		outputs: [
+			{
+				name: '',
+				type: 'address[]',
+				internalType: 'address[]',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'isVault',
+		inputs: [
+			{
+				name: '',
+				type: 'address',
+				internalType: 'address',
+			},
+		],
+		outputs: [
+			{
+				name: '',
+				type: 'bool',
+				internalType: 'bool',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'permit2',
+		inputs: [],
+		outputs: [
+			{
+				name: '',
+				type: 'address',
+				internalType: 'address',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'posm',
+		inputs: [],
+		outputs: [
+			{
+				name: '',
+				type: 'address',
+				internalType: 'address',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'totalVaults',
+		inputs: [],
+		outputs: [
+			{
+				name: '',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'universalRouter',
+		inputs: [],
+		outputs: [
+			{
+				name: '',
+				type: 'address',
+				internalType: 'address',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'vaults',
+		inputs: [
+			{
+				name: '',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+		],
+		outputs: [
+			{
+				name: '',
+				type: 'address',
+				internalType: 'address',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'vaultsCreatedBy',
+		inputs: [
+			{
+				name: '',
+				type: 'address',
+				internalType: 'address',
+			},
+			{
+				name: '',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+		],
+		outputs: [
+			{
+				name: '',
+				type: 'address',
+				internalType: 'address',
+			},
+		],
+		stateMutability: 'view',
 	},
 	{
 		type: 'event',
 		name: 'VaultCreated',
 		inputs: [
-			{ name: 'creator', type: 'address', indexed: true },
-			{ name: 'vault', type: 'address', indexed: true },
+			{
+				name: 'creator',
+				type: 'address',
+				indexed: true,
+				internalType: 'address',
+			},
+			{
+				name: 'vault',
+				type: 'address',
+				indexed: true,
+				internalType: 'address',
+			},
 			{
 				name: 'poolKey',
 				type: 'tuple',
 				indexed: false,
-				components: POOL_KEY_COMPONENTS,
+				internalType: 'struct PoolKey',
+				components: [
+					{
+						name: 'currency0',
+						type: 'address',
+						internalType: 'Currency',
+					},
+					{
+						name: 'currency1',
+						type: 'address',
+						internalType: 'Currency',
+					},
+					{
+						name: 'fee',
+						type: 'uint24',
+						internalType: 'uint24',
+					},
+					{
+						name: 'tickSpacing',
+						type: 'int24',
+						internalType: 'int24',
+					},
+					{
+						name: 'hooks',
+						type: 'address',
+						internalType: 'contract IHooks',
+					},
+				],
 			},
-			{ name: 'agent', type: 'address', indexed: false },
-			{ name: 'nonce', type: 'uint256', indexed: false },
+			{
+				name: 'agent',
+				type: 'address',
+				indexed: false,
+				internalType: 'address',
+			},
+			{
+				name: 'nonce',
+				type: 'uint256',
+				indexed: false,
+				internalType: 'uint256',
+			},
 		],
 		anonymous: false,
-	},
-	{
-		type: 'function',
-		name: 'posm',
-		stateMutability: 'view',
-		inputs: [],
-		outputs: [{ name: '', type: 'address' }],
-	},
-	{
-		type: 'function',
-		name: 'universalRouter',
-		stateMutability: 'view',
-		inputs: [],
-		outputs: [{ name: '', type: 'address' }],
-	},
-	{
-		type: 'function',
-		name: 'permit2',
-		stateMutability: 'view',
-		inputs: [],
-		outputs: [{ name: '', type: 'address' }],
-	},
-	{
-		type: 'function',
-		name: 'vaults',
-		stateMutability: 'view',
-		inputs: [{ name: '', type: 'uint256' }],
-		outputs: [{ name: '', type: 'address' }],
-	},
-	{
-		type: 'function',
-		name: 'vaultsCreatedBy',
-		stateMutability: 'view',
-		inputs: [
-			{ name: '', type: 'address' },
-			{ name: '', type: 'uint256' },
-		],
-		outputs: [{ name: '', type: 'address' }],
-	},
-	{
-		type: 'function',
-		name: 'isVault',
-		stateMutability: 'view',
-		inputs: [{ name: '', type: 'address' }],
-		outputs: [{ name: '', type: 'bool' }],
-	},
-	{
-		type: 'function',
-		name: 'creatorNonce',
-		stateMutability: 'view',
-		inputs: [{ name: '', type: 'address' }],
-		outputs: [{ name: '', type: 'uint256' }],
-	},
-	{
-		type: 'function',
-		name: 'createVault',
-		stateMutability: 'nonpayable',
-		inputs: [
-			{
-				name: 'poolKey',
-				type: 'tuple',
-				components: POOL_KEY_COMPONENTS,
-			},
-			{ name: 'agent', type: 'address' },
-			{ name: 'allowedTickLower', type: 'int24' },
-			{ name: 'allowedTickUpper', type: 'int24' },
-			{ name: 'swapAllowed', type: 'bool' },
-			{ name: 'maxPositionsK', type: 'uint256' },
-		],
-		outputs: [{ name: 'vault', type: 'address' }],
-	},
-	{
-		type: 'function',
-		name: 'computeVaultAddress',
-		stateMutability: 'view',
-		inputs: [
-			{ name: 'creator', type: 'address' },
-			{
-				name: 'poolKey',
-				type: 'tuple',
-				components: POOL_KEY_COMPONENTS,
-			},
-			{ name: 'nonce', type: 'uint256' },
-			{ name: 'agent', type: 'address' },
-			{ name: 'allowedTickLower', type: 'int24' },
-			{ name: 'allowedTickUpper', type: 'int24' },
-			{ name: 'swapAllowed', type: 'bool' },
-			{ name: 'maxPositionsK', type: 'uint256' },
-		],
-		outputs: [{ name: '', type: 'address' }],
-	},
-	{
-		type: 'function',
-		name: 'getVaultsCreatedBy',
-		stateMutability: 'view',
-		inputs: [{ name: 'creator', type: 'address' }],
-		outputs: [{ name: '', type: 'address[]' }],
-	},
-	{
-		type: 'function',
-		name: 'getAllVaults',
-		stateMutability: 'view',
-		inputs: [],
-		outputs: [{ name: '', type: 'address[]' }],
-	},
-	{
-		type: 'function',
-		name: 'totalVaults',
-		stateMutability: 'view',
-		inputs: [],
-		outputs: [{ name: '', type: 'uint256' }],
-	},
-	{
-		type: 'function',
-		name: 'getNextNonce',
-		stateMutability: 'view',
-		inputs: [{ name: 'creator', type: 'address' }],
-		outputs: [{ name: '', type: 'uint256' }],
 	},
 ] as const;

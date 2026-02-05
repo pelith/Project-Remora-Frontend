@@ -1,386 +1,980 @@
-import { POOL_KEY_COMPONENTS } from './pool-key';
-
 export const V4_AGENTIC_VAULT_ABI = [
 	{
 		type: 'constructor',
-		stateMutability: 'nonpayable',
 		inputs: [
-			{ name: '_owner', type: 'address' },
-			{ name: '_agent', type: 'address' },
-			{ name: '_posm', type: 'address' },
-			{ name: '_universalRouter', type: 'address' },
-			{ name: '_permit2', type: 'address' },
+			{
+				name: '_owner',
+				type: 'address',
+				internalType: 'address',
+			},
+			{
+				name: '_agent',
+				type: 'address',
+				internalType: 'address',
+			},
+			{
+				name: '_posm',
+				type: 'address',
+				internalType: 'address',
+			},
+			{
+				name: '_universalRouter',
+				type: 'address',
+				internalType: 'address',
+			},
+			{
+				name: '_permit2',
+				type: 'address',
+				internalType: 'address',
+			},
 			{
 				name: '_poolKey',
 				type: 'tuple',
-				components: POOL_KEY_COMPONENTS,
+				internalType: 'struct PoolKey',
+				components: [
+					{
+						name: 'currency0',
+						type: 'address',
+						internalType: 'Currency',
+					},
+					{
+						name: 'currency1',
+						type: 'address',
+						internalType: 'Currency',
+					},
+					{
+						name: 'fee',
+						type: 'uint24',
+						internalType: 'uint24',
+					},
+					{
+						name: 'tickSpacing',
+						type: 'int24',
+						internalType: 'int24',
+					},
+					{
+						name: 'hooks',
+						type: 'address',
+						internalType: 'contract IHooks',
+					},
+				],
 			},
-			{ name: '_initialAllowedTickLower', type: 'int24' },
-			{ name: '_initialAllowedTickUpper', type: 'int24' },
-			{ name: '_swapAllowed', type: 'bool' },
-			{ name: '_maxPositionsK', type: 'uint256' },
+			{
+				name: '_initialAllowedTickLower',
+				type: 'int24',
+				internalType: 'int24',
+			},
+			{
+				name: '_initialAllowedTickUpper',
+				type: 'int24',
+				internalType: 'int24',
+			},
+			{
+				name: '_swapAllowed',
+				type: 'bool',
+				internalType: 'bool',
+			},
+			{
+				name: '_maxPositionsK',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
 		],
+		stateMutability: 'nonpayable',
 	},
 	{
 		type: 'receive',
 		stateMutability: 'payable',
 	},
 	{
-		type: 'event',
-		name: 'AgentUpdated',
-		inputs: [{ name: 'newAgent', type: 'address', indexed: true }],
-		anonymous: false,
+		type: 'function',
+		name: 'agent',
+		inputs: [],
+		outputs: [
+			{
+				name: '',
+				type: 'address',
+				internalType: 'address',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'agentPaused',
+		inputs: [],
+		outputs: [
+			{
+				name: '',
+				type: 'bool',
+				internalType: 'bool',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'allowedTickLower',
+		inputs: [],
+		outputs: [
+			{
+				name: '',
+				type: 'int24',
+				internalType: 'int24',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'allowedTickUpper',
+		inputs: [],
+		outputs: [
+			{
+				name: '',
+				type: 'int24',
+				internalType: 'int24',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'approveTokenWithPermit2',
+		inputs: [
+			{
+				name: 'currency',
+				type: 'address',
+				internalType: 'Currency',
+			},
+			{
+				name: 'spender',
+				type: 'address',
+				internalType: 'address',
+			},
+			{
+				name: 'amount',
+				type: 'uint160',
+				internalType: 'uint160',
+			},
+			{
+				name: 'expiration',
+				type: 'uint48',
+				internalType: 'uint48',
+			},
+		],
+		outputs: [],
+		stateMutability: 'nonpayable',
+	},
+	{
+		type: 'function',
+		name: 'burnPositionToVault',
+		inputs: [
+			{
+				name: 'tokenId',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+			{
+				name: 'amount0Min',
+				type: 'uint128',
+				internalType: 'uint128',
+			},
+			{
+				name: 'amount1Min',
+				type: 'uint128',
+				internalType: 'uint128',
+			},
+			{
+				name: 'deadline',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+		],
+		outputs: [],
+		stateMutability: 'nonpayable',
+	},
+	{
+		type: 'function',
+		name: 'collectFeesToVault',
+		inputs: [
+			{
+				name: 'tokenId',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+			{
+				name: 'amount0Min',
+				type: 'uint128',
+				internalType: 'uint128',
+			},
+			{
+				name: 'amount1Min',
+				type: 'uint128',
+				internalType: 'uint128',
+			},
+			{
+				name: 'deadline',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+		],
+		outputs: [],
+		stateMutability: 'nonpayable',
+	},
+	{
+		type: 'function',
+		name: 'currency0',
+		inputs: [],
+		outputs: [
+			{
+				name: '',
+				type: 'address',
+				internalType: 'Currency',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'currency1',
+		inputs: [],
+		outputs: [
+			{
+				name: '',
+				type: 'address',
+				internalType: 'Currency',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'decreaseLiquidityToVault',
+		inputs: [
+			{
+				name: 'tokenId',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+			{
+				name: 'liquidity',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+			{
+				name: 'amount0Min',
+				type: 'uint128',
+				internalType: 'uint128',
+			},
+			{
+				name: 'amount1Min',
+				type: 'uint128',
+				internalType: 'uint128',
+			},
+			{
+				name: 'deadline',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+		],
+		outputs: [],
+		stateMutability: 'nonpayable',
+	},
+	{
+		type: 'function',
+		name: 'fee',
+		inputs: [],
+		outputs: [
+			{
+				name: '',
+				type: 'uint24',
+				internalType: 'uint24',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'getPoolKey',
+		inputs: [],
+		outputs: [
+			{
+				name: '',
+				type: 'tuple',
+				internalType: 'struct PoolKey',
+				components: [
+					{
+						name: 'currency0',
+						type: 'address',
+						internalType: 'Currency',
+					},
+					{
+						name: 'currency1',
+						type: 'address',
+						internalType: 'Currency',
+					},
+					{
+						name: 'fee',
+						type: 'uint24',
+						internalType: 'uint24',
+					},
+					{
+						name: 'tickSpacing',
+						type: 'int24',
+						internalType: 'int24',
+					},
+					{
+						name: 'hooks',
+						type: 'address',
+						internalType: 'contract IHooks',
+					},
+				],
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'hooks',
+		inputs: [],
+		outputs: [
+			{
+				name: '',
+				type: 'address',
+				internalType: 'address',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'increaseLiquidity',
+		inputs: [
+			{
+				name: 'tokenId',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+			{
+				name: 'liquidity',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+			{
+				name: 'amount0Max',
+				type: 'uint128',
+				internalType: 'uint128',
+			},
+			{
+				name: 'amount1Max',
+				type: 'uint128',
+				internalType: 'uint128',
+			},
+			{
+				name: 'deadline',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+		],
+		outputs: [],
+		stateMutability: 'nonpayable',
+	},
+	{
+		type: 'function',
+		name: 'isManagedPosition',
+		inputs: [
+			{
+				name: '',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+		],
+		outputs: [
+			{
+				name: '',
+				type: 'bool',
+				internalType: 'bool',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'maxPositionsK',
+		inputs: [],
+		outputs: [
+			{
+				name: '',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'mintPosition',
+		inputs: [
+			{
+				name: 'tickLower',
+				type: 'int24',
+				internalType: 'int24',
+			},
+			{
+				name: 'tickUpper',
+				type: 'int24',
+				internalType: 'int24',
+			},
+			{
+				name: 'liquidity',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+			{
+				name: 'amount0Max',
+				type: 'uint128',
+				internalType: 'uint128',
+			},
+			{
+				name: 'amount1Max',
+				type: 'uint128',
+				internalType: 'uint128',
+			},
+			{
+				name: 'deadline',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+		],
+		outputs: [
+			{
+				name: 'tokenId',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+		],
+		stateMutability: 'nonpayable',
+	},
+	{
+		type: 'function',
+		name: 'onERC721Received',
+		inputs: [
+			{
+				name: '',
+				type: 'address',
+				internalType: 'address',
+			},
+			{
+				name: '',
+				type: 'address',
+				internalType: 'address',
+			},
+			{
+				name: '',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+			{
+				name: '',
+				type: 'bytes',
+				internalType: 'bytes',
+			},
+		],
+		outputs: [
+			{
+				name: '',
+				type: 'bytes4',
+				internalType: 'bytes4',
+			},
+		],
+		stateMutability: 'pure',
+	},
+	{
+		type: 'function',
+		name: 'owner',
+		inputs: [],
+		outputs: [
+			{
+				name: '',
+				type: 'address',
+				internalType: 'address',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'pauseAndExitAll',
+		inputs: [
+			{
+				name: 'deadline',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+		],
+		outputs: [],
+		stateMutability: 'nonpayable',
+	},
+	{
+		type: 'function',
+		name: 'permit2',
+		inputs: [],
+		outputs: [
+			{
+				name: '',
+				type: 'address',
+				internalType: 'contract IPermit2',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'poolId',
+		inputs: [],
+		outputs: [
+			{
+				name: '',
+				type: 'bytes32',
+				internalType: 'PoolId',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'positionIds',
+		inputs: [
+			{
+				name: '',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+		],
+		outputs: [
+			{
+				name: '',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'positionTickLower',
+		inputs: [
+			{
+				name: '',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+		],
+		outputs: [
+			{
+				name: '',
+				type: 'int24',
+				internalType: 'int24',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'positionTickUpper',
+		inputs: [
+			{
+				name: '',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+		],
+		outputs: [
+			{
+				name: '',
+				type: 'int24',
+				internalType: 'int24',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'positionsLength',
+		inputs: [],
+		outputs: [
+			{
+				name: '',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'posm',
+		inputs: [],
+		outputs: [
+			{
+				name: '',
+				type: 'address',
+				internalType: 'contract IPositionManager',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'renounceOwnership',
+		inputs: [],
+		outputs: [],
+		stateMutability: 'nonpayable',
+	},
+	{
+		type: 'function',
+		name: 'setAgent',
+		inputs: [
+			{
+				name: 'newAgent',
+				type: 'address',
+				internalType: 'address',
+			},
+		],
+		outputs: [],
+		stateMutability: 'nonpayable',
+	},
+	{
+		type: 'function',
+		name: 'setAgentPaused',
+		inputs: [
+			{
+				name: 'paused',
+				type: 'bool',
+				internalType: 'bool',
+			},
+		],
+		outputs: [],
+		stateMutability: 'nonpayable',
+	},
+	{
+		type: 'function',
+		name: 'setAllowedTickRange',
+		inputs: [
+			{
+				name: 'tickLower',
+				type: 'int24',
+				internalType: 'int24',
+			},
+			{
+				name: 'tickUpper',
+				type: 'int24',
+				internalType: 'int24',
+			},
+		],
+		outputs: [],
+		stateMutability: 'nonpayable',
+	},
+	{
+		type: 'function',
+		name: 'setMaxPositionsK',
+		inputs: [
+			{
+				name: 'k',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+		],
+		outputs: [],
+		stateMutability: 'nonpayable',
+	},
+	{
+		type: 'function',
+		name: 'setSwapAllowed',
+		inputs: [
+			{
+				name: 'allowed',
+				type: 'bool',
+				internalType: 'bool',
+			},
+		],
+		outputs: [],
+		stateMutability: 'nonpayable',
+	},
+	{
+		type: 'function',
+		name: 'swapAllowed',
+		inputs: [],
+		outputs: [
+			{
+				name: '',
+				type: 'bool',
+				internalType: 'bool',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'swapExactInputSingle',
+		inputs: [
+			{
+				name: 'zeroForOne',
+				type: 'bool',
+				internalType: 'bool',
+			},
+			{
+				name: 'amountIn',
+				type: 'uint128',
+				internalType: 'uint128',
+			},
+			{
+				name: 'minAmountOut',
+				type: 'uint128',
+				internalType: 'uint128',
+			},
+			{
+				name: 'deadline',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+		],
+		outputs: [
+			{
+				name: 'amountOut',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+		],
+		stateMutability: 'nonpayable',
+	},
+	{
+		type: 'function',
+		name: 'tickSpacing',
+		inputs: [],
+		outputs: [
+			{
+				name: '',
+				type: 'int24',
+				internalType: 'int24',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'transferOwnership',
+		inputs: [
+			{
+				name: 'newOwner',
+				type: 'address',
+				internalType: 'address',
+			},
+		],
+		outputs: [],
+		stateMutability: 'nonpayable',
+	},
+	{
+		type: 'function',
+		name: 'universalRouter',
+		inputs: [],
+		outputs: [
+			{
+				name: '',
+				type: 'address',
+				internalType: 'contract IUniversalRouter',
+			},
+		],
+		stateMutability: 'view',
+	},
+	{
+		type: 'function',
+		name: 'withdraw',
+		inputs: [
+			{
+				name: 'currency',
+				type: 'address',
+				internalType: 'Currency',
+			},
+			{
+				name: 'amount',
+				type: 'uint256',
+				internalType: 'uint256',
+			},
+			{
+				name: 'to',
+				type: 'address',
+				internalType: 'address',
+			},
+		],
+		outputs: [],
+		stateMutability: 'nonpayable',
 	},
 	{
 		type: 'event',
 		name: 'AgentPaused',
-		inputs: [{ name: 'paused', type: 'bool', indexed: false }],
+		inputs: [
+			{
+				name: 'paused',
+				type: 'bool',
+				indexed: false,
+				internalType: 'bool',
+			},
+		],
 		anonymous: false,
 	},
 	{
 		type: 'event',
-		name: 'SwapAllowed',
-		inputs: [{ name: 'allowed', type: 'bool', indexed: false }],
+		name: 'AgentUpdated',
+		inputs: [
+			{
+				name: 'newAgent',
+				type: 'address',
+				indexed: true,
+				internalType: 'address',
+			},
+		],
 		anonymous: false,
 	},
 	{
 		type: 'event',
 		name: 'AllowedTickRangeUpdated',
 		inputs: [
-			{ name: 'tickLower', type: 'int24', indexed: false },
-			{ name: 'tickUpper', type: 'int24', indexed: false },
+			{
+				name: 'tickLower',
+				type: 'int24',
+				indexed: false,
+				internalType: 'int24',
+			},
+			{
+				name: 'tickUpper',
+				type: 'int24',
+				indexed: false,
+				internalType: 'int24',
+			},
 		],
 		anonymous: false,
 	},
 	{
 		type: 'event',
 		name: 'MaxPositionsKUpdated',
-		inputs: [{ name: 'k', type: 'uint256', indexed: false }],
+		inputs: [
+			{
+				name: 'k',
+				type: 'uint256',
+				indexed: false,
+				internalType: 'uint256',
+			},
+		],
+		anonymous: false,
+	},
+	{
+		type: 'event',
+		name: 'OwnershipTransferred',
+		inputs: [
+			{
+				name: 'previousOwner',
+				type: 'address',
+				indexed: true,
+				internalType: 'address',
+			},
+			{
+				name: 'newOwner',
+				type: 'address',
+				indexed: true,
+				internalType: 'address',
+			},
+		],
 		anonymous: false,
 	},
 	{
 		type: 'event',
 		name: 'PositionAdded',
 		inputs: [
-			{ name: 'tokenId', type: 'uint256', indexed: true },
-			{ name: 'tickLower', type: 'int24', indexed: false },
-			{ name: 'tickUpper', type: 'int24', indexed: false },
+			{
+				name: 'tokenId',
+				type: 'uint256',
+				indexed: true,
+				internalType: 'uint256',
+			},
+			{
+				name: 'tickLower',
+				type: 'int24',
+				indexed: false,
+				internalType: 'int24',
+			},
+			{
+				name: 'tickUpper',
+				type: 'int24',
+				indexed: false,
+				internalType: 'int24',
+			},
 		],
 		anonymous: false,
 	},
 	{
 		type: 'event',
 		name: 'PositionRemoved',
-		inputs: [{ name: 'tokenId', type: 'uint256', indexed: true }],
+		inputs: [
+			{
+				name: 'tokenId',
+				type: 'uint256',
+				indexed: true,
+				internalType: 'uint256',
+			},
+		],
 		anonymous: false,
 	},
 	{
-		type: 'function',
-		name: 'posm',
-		stateMutability: 'view',
-		inputs: [],
-		outputs: [{ name: '', type: 'address' }],
-	},
-	{
-		type: 'function',
-		name: 'universalRouter',
-		stateMutability: 'view',
-		inputs: [],
-		outputs: [{ name: '', type: 'address' }],
-	},
-	{
-		type: 'function',
-		name: 'permit2',
-		stateMutability: 'view',
-		inputs: [],
-		outputs: [{ name: '', type: 'address' }],
-	},
-	{
-		type: 'function',
-		name: 'currency0',
-		stateMutability: 'view',
-		inputs: [],
-		outputs: [{ name: '', type: 'address' }],
-	},
-	{
-		type: 'function',
-		name: 'currency1',
-		stateMutability: 'view',
-		inputs: [],
-		outputs: [{ name: '', type: 'address' }],
-	},
-	{
-		type: 'function',
-		name: 'fee',
-		stateMutability: 'view',
-		inputs: [],
-		outputs: [{ name: '', type: 'uint24' }],
-	},
-	{
-		type: 'function',
-		name: 'tickSpacing',
-		stateMutability: 'view',
-		inputs: [],
-		outputs: [{ name: '', type: 'int24' }],
-	},
-	{
-		type: 'function',
-		name: 'hooks',
-		stateMutability: 'view',
-		inputs: [],
-		outputs: [{ name: '', type: 'address' }],
-	},
-	{
-		type: 'function',
-		name: 'poolId',
-		stateMutability: 'view',
-		inputs: [],
-		outputs: [{ name: '', type: 'bytes32' }],
-	},
-	{
-		type: 'function',
-		name: 'allowedTickLower',
-		stateMutability: 'view',
-		inputs: [],
-		outputs: [{ name: '', type: 'int24' }],
-	},
-	{
-		type: 'function',
-		name: 'allowedTickUpper',
-		stateMutability: 'view',
-		inputs: [],
-		outputs: [{ name: '', type: 'int24' }],
-	},
-	{
-		type: 'function',
-		name: 'maxPositionsK',
-		stateMutability: 'view',
-		inputs: [],
-		outputs: [{ name: '', type: 'uint256' }],
-	},
-	{
-		type: 'function',
-		name: 'agent',
-		stateMutability: 'view',
-		inputs: [],
-		outputs: [{ name: '', type: 'address' }],
-	},
-	{
-		type: 'function',
-		name: 'agentPaused',
-		stateMutability: 'view',
-		inputs: [],
-		outputs: [{ name: '', type: 'bool' }],
-	},
-	{
-		type: 'function',
-		name: 'swapAllowed',
-		stateMutability: 'view',
-		inputs: [],
-		outputs: [{ name: '', type: 'bool' }],
-	},
-	{
-		type: 'function',
-		name: 'positionIds',
-		stateMutability: 'view',
-		inputs: [{ name: '', type: 'uint256' }],
-		outputs: [{ name: '', type: 'uint256' }],
-	},
-	{
-		type: 'function',
-		name: 'isManagedPosition',
-		stateMutability: 'view',
-		inputs: [{ name: '', type: 'uint256' }],
-		outputs: [{ name: '', type: 'bool' }],
-	},
-	{
-		type: 'function',
-		name: 'positionTickLower',
-		stateMutability: 'view',
-		inputs: [{ name: '', type: 'uint256' }],
-		outputs: [{ name: '', type: 'int24' }],
-	},
-	{
-		type: 'function',
-		name: 'positionTickUpper',
-		stateMutability: 'view',
-		inputs: [{ name: '', type: 'uint256' }],
-		outputs: [{ name: '', type: 'int24' }],
-	},
-	{
-		type: 'function',
-		name: 'setAgent',
-		stateMutability: 'nonpayable',
-		inputs: [{ name: 'newAgent', type: 'address' }],
-		outputs: [],
-	},
-	{
-		type: 'function',
-		name: 'setAgentPaused',
-		stateMutability: 'nonpayable',
-		inputs: [{ name: 'paused', type: 'bool' }],
-		outputs: [],
-	},
-	{
-		type: 'function',
-		name: 'setSwapAllowed',
-		stateMutability: 'nonpayable',
-		inputs: [{ name: 'allowed', type: 'bool' }],
-		outputs: [],
-	},
-	{
-		type: 'function',
-		name: 'setAllowedTickRange',
-		stateMutability: 'nonpayable',
+		type: 'event',
+		name: 'SwapAllowed',
 		inputs: [
-			{ name: 'tickLower', type: 'int24' },
-			{ name: 'tickUpper', type: 'int24' },
-		],
-		outputs: [],
-	},
-	{
-		type: 'function',
-		name: 'setMaxPositionsK',
-		stateMutability: 'nonpayable',
-		inputs: [{ name: 'k', type: 'uint256' }],
-		outputs: [],
-	},
-	{
-		type: 'function',
-		name: 'approveTokenWithPermit2',
-		stateMutability: 'nonpayable',
-		inputs: [
-			{ name: 'currency', type: 'address' },
-			{ name: 'spender', type: 'address' },
-			{ name: 'amount', type: 'uint160' },
-			{ name: 'expiration', type: 'uint48' },
-		],
-		outputs: [],
-	},
-	{
-		type: 'function',
-		name: 'withdraw',
-		stateMutability: 'nonpayable',
-		inputs: [
-			{ name: 'currency', type: 'address' },
-			{ name: 'amount', type: 'uint256' },
-			{ name: 'to', type: 'address' },
-		],
-		outputs: [],
-	},
-	{
-		type: 'function',
-		name: 'pauseAndExitAll',
-		stateMutability: 'nonpayable',
-		inputs: [{ name: 'deadline', type: 'uint256' }],
-		outputs: [],
-	},
-	{
-		type: 'function',
-		name: 'mintPosition',
-		stateMutability: 'nonpayable',
-		inputs: [
-			{ name: 'tickLower', type: 'int24' },
-			{ name: 'tickUpper', type: 'int24' },
-			{ name: 'liquidity', type: 'uint256' },
-			{ name: 'amount0Max', type: 'uint128' },
-			{ name: 'amount1Max', type: 'uint128' },
-			{ name: 'deadline', type: 'uint256' },
-		],
-		outputs: [{ name: 'tokenId', type: 'uint256' }],
-	},
-	{
-		type: 'function',
-		name: 'increaseLiquidity',
-		stateMutability: 'nonpayable',
-		inputs: [
-			{ name: 'tokenId', type: 'uint256' },
-			{ name: 'liquidity', type: 'uint256' },
-			{ name: 'amount0Max', type: 'uint128' },
-			{ name: 'amount1Max', type: 'uint128' },
-			{ name: 'deadline', type: 'uint256' },
-		],
-		outputs: [],
-	},
-	{
-		type: 'function',
-		name: 'decreaseLiquidityToVault',
-		stateMutability: 'nonpayable',
-		inputs: [
-			{ name: 'tokenId', type: 'uint256' },
-			{ name: 'liquidity', type: 'uint256' },
-			{ name: 'amount0Min', type: 'uint128' },
-			{ name: 'amount1Min', type: 'uint128' },
-			{ name: 'deadline', type: 'uint256' },
-		],
-		outputs: [],
-	},
-	{
-		type: 'function',
-		name: 'collectFeesToVault',
-		stateMutability: 'nonpayable',
-		inputs: [
-			{ name: 'tokenId', type: 'uint256' },
-			{ name: 'amount0Min', type: 'uint128' },
-			{ name: 'amount1Min', type: 'uint128' },
-			{ name: 'deadline', type: 'uint256' },
-		],
-		outputs: [],
-	},
-	{
-		type: 'function',
-		name: 'burnPositionToVault',
-		stateMutability: 'nonpayable',
-		inputs: [
-			{ name: 'tokenId', type: 'uint256' },
-			{ name: 'amount0Min', type: 'uint128' },
-			{ name: 'amount1Min', type: 'uint128' },
-			{ name: 'deadline', type: 'uint256' },
-		],
-		outputs: [],
-	},
-	{
-		type: 'function',
-		name: 'swapExactInputSingle',
-		stateMutability: 'nonpayable',
-		inputs: [
-			{ name: 'zeroForOne', type: 'bool' },
-			{ name: 'amountIn', type: 'uint128' },
-			{ name: 'minAmountOut', type: 'uint128' },
-			{ name: 'deadline', type: 'uint256' },
-		],
-		outputs: [{ name: 'amountOut', type: 'uint256' }],
-	},
-	{
-		type: 'function',
-		name: 'getPoolKey',
-		stateMutability: 'view',
-		inputs: [],
-		outputs: [
 			{
-				name: '',
-				type: 'tuple',
-				components: POOL_KEY_COMPONENTS,
+				name: 'allowed',
+				type: 'bool',
+				indexed: false,
+				internalType: 'bool',
+			},
+		],
+		anonymous: false,
+	},
+	{
+		type: 'error',
+		name: 'OwnableInvalidOwner',
+		inputs: [
+			{
+				name: 'owner',
+				type: 'address',
+				internalType: 'address',
 			},
 		],
 	},
 	{
-		type: 'function',
-		name: 'positionsLength',
-		stateMutability: 'view',
-		inputs: [],
-		outputs: [{ name: '', type: 'uint256' }],
+		type: 'error',
+		name: 'OwnableUnauthorizedAccount',
+		inputs: [
+			{
+				name: 'account',
+				type: 'address',
+				internalType: 'address',
+			},
+		],
 	},
 	{
-		type: 'function',
-		name: 'onERC721Received',
-		stateMutability: 'pure',
+		type: 'error',
+		name: 'ReentrancyGuardReentrantCall',
+		inputs: [],
+	},
+	{
+		type: 'error',
+		name: 'SafeERC20FailedOperation',
 		inputs: [
-			{ name: '', type: 'address' },
-			{ name: '', type: 'address' },
-			{ name: '', type: 'uint256' },
-			{ name: '', type: 'bytes' },
+			{
+				name: 'token',
+				type: 'address',
+				internalType: 'address',
+			},
 		],
-		outputs: [{ name: '', type: 'bytes4' }],
 	},
 ] as const;

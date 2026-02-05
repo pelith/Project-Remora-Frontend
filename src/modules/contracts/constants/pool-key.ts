@@ -1,7 +1,0 @@
-export const POOL_KEY_COMPONENTS = [
-	{ name: 'currency0', type: 'address' },
-	{ name: 'currency1', type: 'address' },
-	{ name: 'fee', type: 'uint24' },
-	{ name: 'tickSpacing', type: 'int24' },
-	{ name: 'hooks', type: 'address' },
-] as const;

@@ -3,8 +3,10 @@ import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { Container } from '@/modules/common/components/layout/container';
 import { Button } from '@/modules/common/components/ui/button';
-import { CreateVaultSheet, EmptyState, VaultCard } from '../components';
+import { EmptyState, VaultCard } from '../components';
+import { CreateVaultSheet } from './create-vault-sheet-container';
 import { vaultsAtom } from '../stores/vault.store';
+import { useVault } from '@/modules/contracts/hooks/use-user-vault';
 
 export default function VaultListContainer() {
 	const vaults = useAtomValue(vaultsAtom);
@@ -42,4 +44,10 @@ export default function VaultListContainer() {
 			<CreateVaultSheet open={isCreateOpen} onOpenChange={setIsCreateOpen} />
 		</Container>
 	);
+}
+
+function VaultCardContainer({ vaultAddress }: { vaultAddress: string }) {
+	const vault = useVault({ vaultAddress });
+
+	return <VaultCard vault={vault.data} />;
 }

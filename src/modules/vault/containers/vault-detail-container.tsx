@@ -21,6 +21,12 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/modules/common/components/ui/card';
+import { parseToBigNumber } from '@/modules/common/utils/bignumber';
+import formatValueToStandardDisplay from '@/modules/common/utils/formatValueToStandardDisplay';
+import {
+	useVaultAvailableBalance,
+	useVaultPositionsBalance,
+} from '@/modules/contracts';
 import {
 	AgentControlDialog,
 	DepositSheet,
@@ -43,6 +49,14 @@ export default function VaultDetailContainer({
 	const navigate = useNavigate();
 	const getVault = useMemo(() => getVaultAtom(vaultId), [vaultId]);
 	const vault = useAtomValue(getVault);
+	const availableBalanceData = useVaultAvailableBalance({
+		vaultAddress: vault?.vaultAddress ?? '',
+		currency0: vault?.poolKey.token0.address as `0x${string}` | undefined,
+		currency1: vault?.poolKey.token1.address as `0x${string}` | undefined,
+	});
+	const { data: positionsBalanceData } = useVaultPositionsBalance({
+		vaultAddress: vault?.vaultAddress ?? '',
+	});
 
 	const [isDepositOpen, setIsDepositOpen] = useState(false);
 	const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
@@ -73,15 +87,23 @@ export default function VaultDetailContainer({
 		);
 	}
 
+	const availableBalance = availableBalanceData ?? vault.availableBalance;
+	const inPositions = positionsBalanceData ?? vault.inPositions;
+
 	const handleAgentControl = (action: 'start' | 'pause' | 'resume') => {
 		setAgentAction(action);
 		setIsAgentControlOpen(true);
 	};
 
 	const handleFullExitSuccess = () => {
+		if (!availableBalance.currency0 || !availableBalance.currency1) return;
 		// Calculate total expected balance after exit (Available + InPositions)
-		const total0 = vault.availableBalance.token0 + vault.inPositions.token0;
-		const total1 = vault.availableBalance.token1 + vault.inPositions.token1;
+		const total0 = parseToBigNumber(
+			availableBalance.currency0.balance ?? '0',
+		).plus(inPositions.token0);
+		const total1 = parseToBigNumber(
+			availableBalance.currency1.balance ?? '0',
+		).plus(inPositions.token1);
 
 		setWithdrawDefaults({
 			token0: total0.toString(),
@@ -300,7 +322,7 @@ export default function VaultDetailContainer({
 								<div className='space-y-1 bg-surface-elevated/30 p-2 rounded-md border border-border-default/30'>
 									<div className='flex justify-between items-center text-xs'>
 										<span className='font-mono text-text-primary'>
-											{vault.inPositions.token0.toFixed(4)}
+											{inPositions.token0.toFixed(4)}
 										</span>
 										<span className='text-[10px] text-text-muted'>
 											{vault.poolKey.token0.symbol}
@@ -308,7 +330,7 @@ export default function VaultDetailContainer({
 									</div>
 									<div className='flex justify-between items-center text-xs'>
 										<span className='font-mono text-text-primary'>
-											{vault.inPositions.token1.toFixed(2)}
+											{inPositions.token1.toFixed(2)}
 										</span>
 										<span className='text-[10px] text-text-muted'>
 											{vault.poolKey.token1.symbol}
@@ -332,7 +354,9 @@ export default function VaultDetailContainer({
 								<div className='space-y-1 bg-surface-elevated/30 p-2 rounded-md border border-border-default/30'>
 									<div className='flex justify-between items-center text-xs'>
 										<span className='font-mono text-text-primary'>
-											{vault.availableBalance.token0.toFixed(4)}
+											{formatValueToStandardDisplay(
+												availableBalance.currency0.balance ?? '0',
+											)}
 										</span>
 										<span className='text-[10px] text-text-muted'>
 											{vault.poolKey.token0.symbol}
@@ -340,7 +364,9 @@ export default function VaultDetailContainer({
 									</div>
 									<div className='flex justify-between items-center text-xs'>
 										<span className='font-mono text-text-primary'>
-											{vault.availableBalance.token1.toFixed(2)}
+											{formatValueToStandardDisplay(
+												availableBalance.currency1.balance ?? '0',
+											)}
 										</span>
 										<span className='text-[10px] text-text-muted'>
 											{vault.poolKey.token1.symbol}
