@@ -289,8 +289,14 @@ export const LiquidityDistributionChart = ({
 
 	// Force chart re-render when vault positions or agent status changes
 	// Using key prop to ensure chart updates when data changes
+	// Include positions count, agent status, and a hash of position IDs
 	const chartKey = useMemo(
-		() => `chart-${vault.id}-${vault.positions.length}-${vault.agentStatus}-${vault.positions.map(p => p.id).join('-')}`,
+		() => {
+			const positionsHash = vault.positions.length > 0
+				? vault.positions.map(p => p.id).join('-')
+				: 'empty';
+			return `chart-${vault.id}-${vault.positions.length}-${vault.agentStatus}-${positionsHash}`;
+		},
 		[vault.id, vault.positions.length, vault.agentStatus, vault.positions],
 	);
 
