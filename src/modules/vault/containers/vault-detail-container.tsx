@@ -26,6 +26,7 @@ import {
 	DepositSheet,
 	FullExitDialog,
 	LiquidityDistributionChart,
+	PositionsTable,
 	SettingsSheet,
 	WithdrawSheet,
 } from '../components';
@@ -197,6 +198,7 @@ export default function VaultDetailContainer({
 				{/* Main Content Area - Left Side */}
 				<div className='lg:col-span-8 space-y-4'>
 					<LiquidityDistributionChart vault={vault} />
+					<PositionsTable vault={vault} />
 				</div>
 
 				{/* Sidebar - Right Side */}
