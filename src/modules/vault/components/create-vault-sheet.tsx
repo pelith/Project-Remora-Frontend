@@ -1,30 +1,30 @@
+import { useAtomValue, useSetAtom } from 'jotai';
+import { Check, ChevronRight, Info, Loader2 } from 'lucide-react';
 import { useState } from 'react';
-import { useSetAtom, useAtomValue } from 'jotai';
-import type { CreateVaultFormData, Pool } from '../types/vault.types';
-import { createVaultAtom, isLoadingAtom } from '../stores/vault.store';
-import { MOCK_POOLS } from '../constants/mock-pools';
-import {
-	Sheet,
-	SheetContent,
-	SheetHeader,
-	SheetTitle,
-	SheetDescription,
-	SheetFooter,
-} from '@/modules/common/components/ui/sheet';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { Alert, AlertDescription } from '@/modules/common/components/ui/alert';
+import { Badge } from '@/modules/common/components/ui/badge';
 import { Button } from '@/modules/common/components/ui/button';
+import { Card } from '@/modules/common/components/ui/card';
 import { Input } from '@/modules/common/components/ui/input';
 import { Label } from '@/modules/common/components/ui/label';
 import {
 	RadioGroup,
 	RadioGroupItem,
 } from '@/modules/common/components/ui/radio-group';
+import {
+	Sheet,
+	SheetContent,
+	SheetDescription,
+	SheetFooter,
+	SheetHeader,
+	SheetTitle,
+} from '@/modules/common/components/ui/sheet';
 import { Switch } from '@/modules/common/components/ui/switch';
-import { Card } from '@/modules/common/components/ui/card';
-import { Badge } from '@/modules/common/components/ui/badge';
-import { Alert, AlertDescription } from '@/modules/common/components/ui/alert';
-import { ChevronRight, Loader2, Check, Info } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
+import { MOCK_POOLS } from '../constants/mock-pools';
+import { createVaultAtom, isLoadingAtom } from '../stores/vault.store';
+import type { CreateVaultFormData } from '../types/vault.types';
 import { getMockPrice } from '../utils/vault-utils';
 
 interface CreateVaultSheetProps {
@@ -51,9 +51,6 @@ export const CreateVaultSheet = ({
 	const [lastLimit, setLastLimit] = useState('5');
 	const createVault = useSetAtom(createVaultAtom);
 	const isLoading = useAtomValue(isLoadingAtom);
-
-	// Mock wallet connection for demo
-	const isConnected = true;
 
 	const formatPrice = (price: number) => {
 		return new Intl.NumberFormat('en-US', {
@@ -89,11 +86,11 @@ export const CreateVaultSheet = ({
 			const finalData = { ...formData };
 
 			if (formData.riskProfile === 'custom') {
-				const minPrice = parseFloat(formData.customRange.min);
-				const maxPrice = parseFloat(formData.customRange.max);
+				const minPrice = Number.parseFloat(formData.customRange.min);
+				const maxPrice = Number.parseFloat(formData.customRange.max);
 
 				// Calculate ticks from prices
-				if (!isNaN(minPrice) && !isNaN(maxPrice)) {
+				if (!Number.isNaN(minPrice) && !Number.isNaN(maxPrice)) {
 					const currentBasePrice = formData.selectedPool
 						? getMockPrice(formData.selectedPool.token0.symbol)
 						: 0;
@@ -114,7 +111,7 @@ export const CreateVaultSheet = ({
 				setStep(1);
 				setFormData(INITIAL_DATA);
 			}, 300);
-		} catch (error) {
+		} catch (_error) {
 			toast.error('Failed to create vault');
 		}
 	};
@@ -164,9 +161,11 @@ export const CreateVaultSheet = ({
 		if (step === 1) return !formData.selectedPool;
 		if (step === 3) {
 			// Basic check: must deposit something
-			const val0 = parseFloat(formData.depositAmount.token0);
-			const val1 = parseFloat(formData.depositAmount.token1);
-			return (isNaN(val0) || val0 <= 0) && (isNaN(val1) || val1 <= 0);
+			const val0 = Number.parseFloat(formData.depositAmount.token0);
+			const val1 = Number.parseFloat(formData.depositAmount.token1);
+			return (
+				(Number.isNaN(val0) || val0 <= 0) && (Number.isNaN(val1) || val1 <= 0)
+			);
 		}
 		return false;
 	};
@@ -382,7 +381,6 @@ export const CreateVaultSheet = ({
 											No Limit
 										</Label>
 										<Switch
-											id='unlimited-positions'
 											checked={formData.maxPositions === '0'}
 											onCheckedChange={(checked) => {
 												if (checked) {
@@ -403,7 +401,6 @@ export const CreateVaultSheet = ({
 
 								<div className='flex items-center gap-4'>
 									<Input
-										id='max-positions'
 										type='number'
 										min='1'
 										value={

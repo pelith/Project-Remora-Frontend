@@ -1,6 +1,6 @@
-import type { Vault } from '../types/vault.types';
-import { Card } from '@/modules/common/components/ui/card';
 import { TrendingUp } from 'lucide-react';
+import { Card } from '@/modules/common/components/ui/card';
+import type { Vault } from '../types/vault.types';
 import { getMockPrice } from '../utils/vault-utils';
 
 interface LiquidityChartProps {
@@ -99,12 +99,12 @@ export const LiquidityChart = ({ vault }: LiquidityChartProps) => {
 											<td className='py-3 px-4 text-center'>
 												{inRange ? (
 													<div className='flex items-center justify-center gap-1.5 text-green-400'>
-														<div className='w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse'></div>
+														<div className='w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse' />
 														<span>Active</span>
 													</div>
 												) : (
 													<div className='flex items-center justify-center gap-1.5 text-zinc-500'>
-														<div className='w-1.5 h-1.5 rounded-full border border-zinc-600'></div>
+														<div className='w-1.5 h-1.5 rounded-full border border-zinc-600' />
 														<span>Standby</span>
 													</div>
 												)}

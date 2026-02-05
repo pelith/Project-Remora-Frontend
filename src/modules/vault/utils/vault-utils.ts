@@ -1,4 +1,4 @@
-import type { Pool, Position, Vault } from '../types/vault.types';
+import type { Pool, Position } from '../types/vault.types';
 
 export function getMockPrice(symbol: string): number {
 	if (symbol === 'ETH') return 2500;
@@ -86,8 +86,8 @@ export function calculateInitialTVL(
 	amount1: string,
 	pool: Pool,
 ): number {
-	const val0 = parseFloat(amount0) || 0;
-	const val1 = parseFloat(amount1) || 0;
+	const val0 = Number.parseFloat(amount0) || 0;
+	const val1 = Number.parseFloat(amount1) || 0;
 
 	let price0 = 0;
 	let price1 = 0;

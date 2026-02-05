@@ -1,22 +1,22 @@
-import { useState } from 'react';
 import { useSetAtom } from 'jotai';
-import type { Vault } from '../types/vault.types';
-import { depositAtom } from '../stores/vault.store';
-import {
-	Sheet,
-	SheetContent,
-	SheetHeader,
-	SheetTitle,
-	SheetDescription,
-	SheetFooter,
-} from '@/modules/common/components/ui/sheet';
-import { Button } from '@/modules/common/components/ui/button';
-import { Input } from '@/modules/common/components/ui/input';
-import { Label } from '@/modules/common/components/ui/label';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/modules/common/components/ui/alert';
+import { Button } from '@/modules/common/components/ui/button';
+import { Input } from '@/modules/common/components/ui/input';
+import { Label } from '@/modules/common/components/ui/label';
+import {
+	Sheet,
+	SheetContent,
+	SheetDescription,
+	SheetFooter,
+	SheetHeader,
+	SheetTitle,
+} from '@/modules/common/components/ui/sheet';
+import { depositAtom } from '../stores/vault.store';
+import type { Vault } from '../types/vault.types';
 
 interface DepositSheetProps {
 	vault: Vault;
@@ -50,12 +50,12 @@ export const DepositSheet = ({
 
 	const validate = () => {
 		const newErrors: { token0?: string; token1?: string } = {};
-		const val0 = parseFloat(amount0) || 0;
-		const val1 = parseFloat(amount1) || 0;
+		const val0 = Number.parseFloat(amount0) || 0;
+		const val1 = Number.parseFloat(amount1) || 0;
 
 		// Parse balances (remove commas)
-		const max0 = parseFloat(avail0.replace(/,/g, ''));
-		const max1 = parseFloat(avail1.replace(/,/g, ''));
+		const max0 = Number.parseFloat(avail0.replace(/,/g, ''));
+		const max1 = Number.parseFloat(avail1.replace(/,/g, ''));
 
 		if (val0 > max0) {
 			newErrors.token0 = 'Insufficient balance';
@@ -75,7 +75,10 @@ export const DepositSheet = ({
 		if (!validate()) return;
 
 		// Ensure at least one amount is > 0
-		if ((parseFloat(amount0) || 0) <= 0 && (parseFloat(amount1) || 0) <= 0) {
+		if (
+			(Number.parseFloat(amount0) || 0) <= 0 &&
+			(Number.parseFloat(amount1) || 0) <= 0
+		) {
 			toast.error('Please enter an amount to deposit');
 			return;
 		}
@@ -89,7 +92,7 @@ export const DepositSheet = ({
 			setAmount0('');
 			setAmount1('');
 			setErrors({});
-		} catch (error) {
+		} catch (_error) {
 			toast.error('Deposit failed', {
 				description: 'Please try again later.',
 			});

@@ -103,8 +103,8 @@ function updateVault(
 // Action atoms
 export const createVaultAtom = atom(
 	null,
-	async (get, set, data: CreateVaultFormData) => {
-		if (!d_get.selectedPool) return;
+	async (_get, set, data: CreateVaultFormData) => {
+		if (!data.selectedPool) return;
 		set(isLoadingAtom, true);
 		await new Promise((resolve) => setTimeout(resolve, 1500));
 

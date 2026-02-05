@@ -1,22 +1,22 @@
-import { useState, useEffect } from 'react';
 import { useSetAtom } from 'jotai';
-import type { Vault } from '../types/vault.types';
-import { withdrawAtom } from '../stores/vault.store';
-import {
-	Sheet,
-	SheetContent,
-	SheetHeader,
-	SheetTitle,
-	SheetDescription,
-	SheetFooter,
-} from '@/modules/common/components/ui/sheet';
+import { AlertCircle, Info } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { Alert, AlertDescription } from '@/modules/common/components/ui/alert';
 import { Button } from '@/modules/common/components/ui/button';
 import { Input } from '@/modules/common/components/ui/input';
 import { Label } from '@/modules/common/components/ui/label';
-import { Loader2, AlertCircle, Info } from 'lucide-react';
-import { Alert, AlertDescription } from '@/modules/common/components/ui/alert';
-import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import {
+	Sheet,
+	SheetContent,
+	SheetDescription,
+	SheetFooter,
+	SheetHeader,
+	SheetTitle,
+} from '@/modules/common/components/ui/sheet';
+import { withdrawAtom } from '../stores/vault.store';
+import type { Vault } from '../types/vault.types';
 import { FullExitDialog } from './full-exit-dialog';
 
 interface WithdrawSheetProps {
@@ -56,8 +56,8 @@ export const WithdrawSheet = ({
 
 	const validate = () => {
 		const newErrors: { token0?: string; token1?: string } = {};
-		const val0 = parseFloat(amount0) || 0;
-		const val1 = parseFloat(amount1) || 0;
+		const val0 = Number.parseFloat(amount0) || 0;
+		const val1 = Number.parseFloat(amount1) || 0;
 
 		// Check available balance
 		if (val0 > vault.availableBalance.token0) {
@@ -87,7 +87,7 @@ export const WithdrawSheet = ({
 	const handleWithdraw = async () => {
 		if (!validate()) return;
 
-		if ((parseFloat(amount0) || 0) <= 0 && (parseFloat(amount1) || 0) <= 0) {
+		if ((Number.parseFloat(amount0) || 0) <= Number.parseFloat(amount1) || 0) {
 			toast.error('Please enter an amount to withdraw');
 			return;
 		}
@@ -98,7 +98,7 @@ export const WithdrawSheet = ({
 				description: `Withdrawn ${amount0 || '0'} ${vault.poolKey.token0.symbol} and ${amount1 || '0'} ${vault.poolKey.token1.symbol}`,
 			});
 			onOpenChange(false);
-		} catch (error) {
+		} catch (_error) {
 			toast.error('Withdrawal failed');
 		}
 	};
