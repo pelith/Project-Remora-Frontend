@@ -1,7 +1,4 @@
-import { env } from '@/env';
-
 const DEFAULT_COINGECKO_BASE_URL = 'https://api.coingecko.com/api/v3';
-
 export interface TokenPriceRequest {
 	id: string;
 	vsCurrency?: string;
@@ -20,7 +17,7 @@ export interface TokenPriceResponse {
 }
 
 function getCoingeckoBaseUrl() {
-	return env.VITE_COINGECKO_BASE_URL ?? DEFAULT_COINGECKO_BASE_URL;
+	return DEFAULT_COINGECKO_BASE_URL;
 }
 
 export async function fetchTokenPrice(
@@ -74,9 +71,7 @@ export async function fetchTokenPrice(
 	const price = entry?.[vsCurrency];
 
 	if (typeof price !== 'number') {
-		throw new Error(
-			`Token price not found for "${id}" in "${vsCurrency}".`,
-		);
+		throw new Error(`Token price not found for "${id}" in "${vsCurrency}".`);
 	}
 
 	return {

@@ -1,6 +1,5 @@
+import type { PoolKey } from '@uniswap/v4-sdk';
 import type { LiquidityDistributionRequest } from '../services/liquidity-distribution-api';
-import type { PoolKey } from '../utils/get-pool-id';
-
 /**
  * Token addresses used in Uniswap v4 pools
  * Note: 0x0000000000000000000000000000000000000000 represents native ETH
