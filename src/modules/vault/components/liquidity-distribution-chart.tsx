@@ -209,12 +209,12 @@ function createOverlayPlugin(
 				ctx.fillText(
 					`$${chartData.allowedLowerPrice.toLocaleString()}`,
 					leftX,
-					yAxisLeft.bottom + 15,
+					yAxisLeft.bottom + 9,
 				);
 				ctx.fillText(
 					`$${chartData.allowedUpperPrice.toLocaleString()}`,
 					rightX,
-					yAxisLeft.bottom + 15,
+					yAxisLeft.bottom + 9,
 				);
 
 				ctx.restore();
@@ -250,10 +250,6 @@ function createOverlayPlugin(
 			ctx.shadowBlur = 10;
 			ctx.font = '700 12px JetBrains Mono';
 			ctx.textAlign = 'center';
-
-			if (inRange) {
-				ctx.fillText('IN RANGE ✓', currentX, yAxisLeft.top - 20);
-			}
 			ctx.fillText(
 				`$${currentPrice.toLocaleString()}`,
 				currentX,
@@ -324,6 +320,11 @@ export const LiquidityDistributionChart = ({
 		() => ({
 			responsive: true,
 			maintainAspectRatio: false,
+			layout: {
+				padding: {
+					top: 40, // Add padding at top for current price label
+				},
+			},
 			interaction: {
 				mode: 'index',
 				intersect: false,
@@ -415,6 +416,7 @@ export const LiquidityDistributionChart = ({
 						color: 'rgba(14, 165, 233, 1)',
 						font: { size: 10, family: 'JetBrains Mono' },
 						callback: (v) => '$' + (Number(v) / 1000).toFixed(0) + 'K',
+						padding: 8,
 					},
 					title: {
 						display: true,
@@ -438,6 +440,7 @@ export const LiquidityDistributionChart = ({
 						color: 'rgba(255, 152, 0, 1)',
 						font: { size: 10, family: 'JetBrains Mono' },
 						callback: (v) => '$' + (Number(v) / 1000).toFixed(1) + 'K',
+						padding: 8,
 					},
 					title: {
 						display: true,
