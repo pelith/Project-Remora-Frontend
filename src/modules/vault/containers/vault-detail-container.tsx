@@ -27,6 +27,8 @@ import {
 	useVaultAvailableBalance,
 	useVaultPositionsBalance,
 } from '@/modules/contracts';
+import { useVault as useVaultOnChain } from '@/modules/contracts/hooks/use-user-vault';
+import { useChainId } from 'wagmi';
 import {
 	AgentControlDialog,
 	DepositSheet,
@@ -49,10 +51,17 @@ export default function VaultDetailContainer({
 	const navigate = useNavigate();
 	const getVault = useMemo(() => getVaultAtom(vaultId), [vaultId]);
 	const vault = useAtomValue(getVault);
+	const chainId = useChainId();
+	const onChainVault = useVaultOnChain({
+		vaultAddress: vault?.vaultAddress ?? '',
+	});
 	const availableBalanceData = useVaultAvailableBalance({
 		vaultAddress: vault?.vaultAddress ?? '',
-		currency0: vault?.poolKey.token0.address as `0x${string}` | undefined,
-		currency1: vault?.poolKey.token1.address as `0x${string}` | undefined,
+		currency0: (onChainVault.data?.currency0 ??
+			vault?.poolKey.token0.address) as `0x${string}` | undefined,
+		currency1: (onChainVault.data?.currency1 ??
+			vault?.poolKey.token1.address) as `0x${string}` | undefined,
+		chainId,
 	});
 	const { data: positionsBalanceData } = useVaultPositionsBalance({
 		vaultAddress: vault?.vaultAddress ?? '',
@@ -74,6 +83,28 @@ export default function VaultDetailContainer({
 		| undefined
 	>(undefined);
 
+	const availableBalance = useMemo(() => {
+		const token0 = availableBalanceData.currency0?.balance;
+		const token1 = availableBalanceData.currency1?.balance;
+		if (token0 !== undefined || token1 !== undefined) {
+			return {
+				token0: token0 ?? '0',
+				token1: token1 ?? '0',
+			};
+		}
+		return {
+			token0: vault?.availableBalance.token0.toString() ?? '0',
+			token1: vault?.availableBalance.token1.toString() ?? '0',
+		};
+	}, [
+		availableBalanceData.currency0?.balance,
+		availableBalanceData.currency1?.balance,
+		vault?.availableBalance.token0,
+		vault?.availableBalance.token1,
+	]);
+	const inPositions =
+		positionsBalanceData ?? vault?.inPositions ?? { token0: 0, token1: 0 };
+
 	if (!vault) {
 		return (
 			<Container className='py-8'>
@@ -87,23 +118,19 @@ export default function VaultDetailContainer({
 		);
 	}
 
-	const availableBalance = availableBalanceData ?? vault.availableBalance;
-	const inPositions = positionsBalanceData ?? vault.inPositions;
-
 	const handleAgentControl = (action: 'start' | 'pause' | 'resume') => {
 		setAgentAction(action);
 		setIsAgentControlOpen(true);
 	};
 
 	const handleFullExitSuccess = () => {
-		if (!availableBalance.currency0 || !availableBalance.currency1) return;
 		// Calculate total expected balance after exit (Available + InPositions)
-		const total0 = parseToBigNumber(
-			availableBalance.currency0.balance ?? '0',
-		).plus(inPositions.token0);
-		const total1 = parseToBigNumber(
-			availableBalance.currency1.balance ?? '0',
-		).plus(inPositions.token1);
+		const total0 = parseToBigNumber(availableBalance.token0 ?? '0').plus(
+			inPositions.token0,
+		);
+		const total1 = parseToBigNumber(availableBalance.token1 ?? '0').plus(
+			inPositions.token1,
+		);
 
 		setWithdrawDefaults({
 			token0: total0.toString(),
@@ -355,7 +382,7 @@ export default function VaultDetailContainer({
 									<div className='flex justify-between items-center text-xs'>
 										<span className='font-mono text-text-primary'>
 											{formatValueToStandardDisplay(
-												availableBalance.currency0.balance ?? '0',
+												availableBalance.token0 ?? '0',
 											)}
 										</span>
 										<span className='text-[10px] text-text-muted'>
@@ -365,7 +392,7 @@ export default function VaultDetailContainer({
 									<div className='flex justify-between items-center text-xs'>
 										<span className='font-mono text-text-primary'>
 											{formatValueToStandardDisplay(
-												availableBalance.currency1.balance ?? '0',
+												availableBalance.token1 ?? '0',
 											)}
 										</span>
 										<span className='text-[10px] text-text-muted'>
