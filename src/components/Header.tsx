@@ -6,6 +6,8 @@ import {
 import { Link } from '@tanstack/react-router';
 import { Wallet } from 'lucide-react';
 import { useCallback, useMemo } from 'react';
+import { isAddress } from 'viem';
+import { useEnsName } from 'wagmi';
 import { cn } from '@/lib/utils';
 import { Container } from '@/modules/common/components/layout/container';
 import { Button } from '@/modules/common/components/ui/button';
@@ -14,6 +16,10 @@ export default function Header() {
 	const { open } = useAppKit();
 	const { address, isConnected } = useAppKitAccount();
 	const { disconnect } = useDisconnect();
+	const { data: ensName } = useEnsName({
+		address: address as `0x${string}`,
+		query: { enabled: isConnected && isAddress(address ?? '') },
+	});
 
 	const handleConnect = useCallback(() => {
 		open({ view: 'Connect', namespace: 'eip155' });
@@ -22,6 +28,9 @@ export default function Header() {
 	const formattedAddress = useMemo(() => {
 		if (!address) {
 			return '';
+		}
+		if (ensName) {
+			return ensName;
 		}
 		return `${address.slice(0, 6)}...${address.slice(-4)}`;
 	}, [address]);
