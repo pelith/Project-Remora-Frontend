@@ -93,9 +93,9 @@ export const SettingsSheet = ({
 			setMaxPositions(vault.config.k.toString());
 
 			// Heuristic to detect profile
-			if (lower === -1000 && upper === 1000) setRiskProfile('conservative');
+			if (lower === -5000 && upper === 5000) setRiskProfile('conservative');
 			else if (lower === -2000 && upper === 2000) setRiskProfile('standard');
-			else if (lower === -5000 && upper === 5000) setRiskProfile('aggressive');
+			else if (lower === -1000 && upper === 1000) setRiskProfile('aggressive');
 			else setRiskProfile('custom');
 		}
 	}, [open, vault, currentPrice]);
@@ -105,14 +105,14 @@ export const SettingsSheet = ({
 
 		// Set ticks based on profile (assuming mock ticks relative to 0)
 		if (value === 'conservative') {
-			setTickLower(getPriceFromTick(-1000).toFixed(2));
-			setTickUpper(getPriceFromTick(1000).toFixed(2));
+			setTickLower(getPriceFromTick(-5000).toFixed(2));
+			setTickUpper(getPriceFromTick(5000).toFixed(2));
 		} else if (value === 'standard') {
 			setTickLower(getPriceFromTick(-2000).toFixed(2));
 			setTickUpper(getPriceFromTick(2000).toFixed(2));
 		} else if (value === 'aggressive') {
-			setTickLower(getPriceFromTick(-5000).toFixed(2));
-			setTickUpper(getPriceFromTick(5000).toFixed(2));
+			setTickLower(getPriceFromTick(-1000).toFixed(2));
+			setTickUpper(getPriceFromTick(1000).toFixed(2));
 		}
 		// 'custom' keeps current values or lets user edit
 	};
@@ -193,8 +193,8 @@ export const SettingsSheet = ({
 								{
 									value: 'conservative',
 									label: 'Conservative',
-									range: '±10% range',
-									desc: getRangeDisplay(-1000, 1000),
+									range: '±50% range',
+									desc: getRangeDisplay(-5000, 5000),
 								},
 								{
 									value: 'standard',
@@ -205,8 +205,8 @@ export const SettingsSheet = ({
 								{
 									value: 'aggressive',
 									label: 'Aggressive',
-									range: '±50% range',
-									desc: getRangeDisplay(-5000, 5000),
+									range: '±10% range',
+									desc: getRangeDisplay(-1000, 1000),
 								},
 								{
 									value: 'custom',

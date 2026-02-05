@@ -5,88 +5,97 @@ import {
 	generateMockPositions,
 	getMockPrice,
 } from '../utils/vault-utils';
+// Generate realistic mock vaults with market-aligned positions
+function generateMockVaults(): Vault[] {
+	const now = Date.now();
 
-// Mock initial vaults for demo
-const mockVaults: Vault[] = [
-	{
-		id: 'vault-demo-1',
-		vaultAddress: '0x1234567890123456789012345678901234567890',
-		poolKey: {
-			token0: { symbol: 'ETH', name: 'Ethereum', decimals: 18 },
-			token1: { symbol: 'USDC', name: 'USD Coin', decimals: 6 },
-			fee: 500,
-			id: 'pool-1',
-		},
-		totalValueUSD: 125000,
-		createdAt: Date.now() - 86400000,
-		agentStatus: 'active',
-		availableBalance: {
-			token0: 10.5,
-			token1: 25000,
-		},
-		inPositions: {
-			token0: 40.0,
-			token1: 100000,
-		},
-		config: {
-			tickLower: -2000,
-			tickUpper: 2000,
-			k: 5,
-			swapAllowed: true,
-		},
-		positions: [
-			{
-				id: 'pos-1',
-				tickLower: -30,
-				tickUpper: 30,
-				liquidityUSD: 50000,
-				inRange: true,
+	// Vault 1: ETH/USDC pool
+	const ethPrice = getMockPrice('ETH');
+	const vault1InvestedUSD = 100000; // 80% of 125K
+	const vault1Positions = generateMockPositions(
+		vault1InvestedUSD,
+		5, // k = 5
+		ethPrice,
+	);
+	const vault1TotalInPositions = vault1Positions.reduce(
+		(sum, p) => sum + p.liquidityUSD,
+		0,
+	);
+
+	// Vault 2: WBTC/ETH pool
+	const wbtcPrice = getMockPrice('WBTC');
+	const vault2InvestedUSD = 68000; // 80% of 85K
+	const vault2Positions = generateMockPositions(
+		vault2InvestedUSD,
+		3, // k = 3
+		wbtcPrice,
+	);
+	const vault2TotalInPositions = vault2Positions.reduce(
+		(sum, p) => sum + p.liquidityUSD,
+		0,
+	);
+
+	return [
+		{
+			id: 'vault-demo-1',
+			vaultAddress: '0x1234567890123456789012345678901234567890',
+			poolKey: {
+				token0: { symbol: 'ETH', name: 'Ethereum', decimals: 18 },
+				token1: { symbol: 'USDC', name: 'USD Coin', decimals: 6 },
+				fee: 500,
+				id: 'pool-1',
 			},
-			{
-				id: 'pos-2',
-				tickLower: -150,
-				tickUpper: -90,
-				liquidityUSD: 30000,
-				inRange: false,
+			totalValueUSD: 125000,
+			createdAt: now - 86400000,
+			agentStatus: 'active',
+			availableBalance: {
+				token0: 10.5,
+				token1: 25000,
 			},
-			{
-				id: 'pos-3',
-				tickLower: 150,
-				tickUpper: 210,
-				liquidityUSD: 20000,
-				inRange: false,
+			inPositions: {
+				token0: (vault1TotalInPositions / ethPrice) * 0.4,
+				token1: vault1TotalInPositions * 0.6,
 			},
-		],
-	},
-	{
-		id: 'vault-demo-2',
-		vaultAddress: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
-		poolKey: {
-			token0: { symbol: 'WBTC', name: 'Wrapped Bitcoin', decimals: 8 },
-			token1: { symbol: 'ETH', name: 'Ethereum', decimals: 18 },
-			fee: 500,
-			id: 'pool-2',
+			config: {
+				tickLower: -2000,
+				tickUpper: 2000,
+				k: 5,
+				swapAllowed: true,
+			},
+			positions: vault1Positions,
 		},
-		totalValueUSD: 85000,
-		createdAt: Date.now() - 172800000,
-		agentStatus: 'paused',
-		availableBalance: {
-			token0: 1.2,
-			token1: 15.0,
+		{
+			id: 'vault-demo-2',
+			vaultAddress: '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+			poolKey: {
+				token0: { symbol: 'WBTC', name: 'Wrapped Bitcoin', decimals: 8 },
+				token1: { symbol: 'ETH', name: 'Ethereum', decimals: 18 },
+				fee: 500,
+				id: 'pool-2',
+			},
+			totalValueUSD: 85000,
+			createdAt: now - 172800000,
+			agentStatus: 'paused',
+			availableBalance: {
+				token0: 1.2,
+				token1: 15.0,
+			},
+			inPositions: {
+				token0: (vault2TotalInPositions / wbtcPrice) * 0.5,
+				token1: (vault2TotalInPositions / ethPrice) * 0.5,
+			},
+			config: {
+				tickLower: -1000,
+				tickUpper: 1000,
+				k: 3,
+				swapAllowed: false,
+			},
+			positions: vault2Positions,
 		},
-		inPositions: {
-			token0: 0,
-			token1: 0,
-		},
-		config: {
-			tickLower: -1000,
-			tickUpper: 1000,
-			k: 3,
-			swapAllowed: false,
-		},
-		positions: [],
-	},
-];
+	];
+}
+
+const mockVaults: Vault[] = generateMockVaults();
 
 export const vaultsAtom = atom<Vault[]>(mockVaults);
 export const isLoadingAtom = atom(false);
@@ -114,14 +123,14 @@ export const createVaultAtom = atom(
 
 			// Determine initial tick range based on risk profile
 			if (data.riskProfile === 'conservative') {
-				initialTickLower = -500;
-				initialTickUpper = 500;
+				initialTickLower = -5000;
+				initialTickUpper = 5000;
 			} else if (data.riskProfile === 'standard') {
-				initialTickLower = -1000;
-				initialTickUpper = 1000;
-			} else if (data.riskProfile === 'aggressive') {
 				initialTickLower = -2000;
 				initialTickUpper = 2000;
+			} else if (data.riskProfile === 'aggressive') {
+				initialTickLower = -1000;
+				initialTickUpper = 1000;
 			} else {
 				// Custom
 				initialTickLower = data.customRange.min
@@ -273,9 +282,14 @@ export const startAgentAtom = atom(null, async (get, set, vaultId: string) => {
 			const price0 = getMockPrice(v.poolKey.token0.symbol);
 			const price1 = getMockPrice(v.poolKey.token1.symbol);
 			const investedUSD = move0 * price0 + move1 * price1;
+			const currentPrice = price0; // Use token0 price as reference
 
-			// Pass the configured K (max positions) to the generator
-			const positions = generateMockPositions(investedUSD, v.config.k);
+			// Generate positions aligned with market liquidity peaks
+			const positions = generateMockPositions(
+				investedUSD,
+				v.config.k,
+				currentPrice,
+			);
 
 			return {
 				...v,

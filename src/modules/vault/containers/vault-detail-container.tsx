@@ -25,7 +25,8 @@ import {
 	AgentControlDialog,
 	DepositSheet,
 	FullExitDialog,
-	LiquidityChart,
+	LiquidityDistributionChart,
+	PositionsTable,
 	SettingsSheet,
 	WithdrawSheet,
 } from '../components';
@@ -103,7 +104,7 @@ export default function VaultDetailContainer({
 	const currentPrice = getMockPrice(vault.poolKey.token0.symbol);
 
 	return (
-		<Container className='py-4 space-y-6 animate-in fade-in duration-500'>
+		<Container className='pt-4 pb-16 space-y-6 animate-in fade-in duration-500'>
 			{/* Combined Header & KPI Section */}
 			<div className='flex flex-col md:flex-row md:items-end justify-between gap-6 pb-4 border-b border-border-default/40'>
 				{/* Left: Identity & Status */}
@@ -196,7 +197,8 @@ export default function VaultDetailContainer({
 			<div className='grid grid-cols-1 lg:grid-cols-12 gap-4'>
 				{/* Main Content Area - Left Side */}
 				<div className='lg:col-span-8 space-y-4'>
-					<LiquidityChart vault={vault} />
+					<LiquidityDistributionChart vault={vault} />
+					<PositionsTable vault={vault} />
 				</div>
 
 				{/* Sidebar - Right Side */}

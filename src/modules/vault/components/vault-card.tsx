@@ -1,5 +1,5 @@
-import { ArrowRight, Wallet } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
+import { ArrowRight, Wallet } from 'lucide-react';
 import { Badge } from '@/modules/common/components/ui/badge';
 import { Card } from '@/modules/common/components/ui/card';
 import type { Vault } from '../types/vault.types';

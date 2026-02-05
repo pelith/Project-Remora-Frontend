@@ -37,13 +37,13 @@ export const PositionsTable = ({ vault }: PositionsTableProps) => {
 
 	if (vault.positions.length === 0) {
 		return (
-			<Card className='h-full flex flex-col border-border-default/50 bg-surface-card/50'>
+			<Card className='min-h-[200px] border-border-default/50 bg-surface-card/50'>
 				<CardHeader className='py-3 px-4 border-b border-border-default/40'>
 					<CardTitle className='text-sm font-medium'>
 						Active Positions
 					</CardTitle>
 				</CardHeader>
-				<CardContent className='flex-1 flex flex-col items-center justify-center text-center text-text-muted p-4'>
+				<CardContent className='flex flex-col items-center justify-center text-center text-text-muted p-4 min-h-[120px]'>
 					<div className='h-10 w-10 rounded-full bg-surface-elevated flex items-center justify-center mb-2 border border-border-default/30'>
 						<Layers className='h-5 w-5 opacity-50' />
 					</div>
@@ -59,7 +59,7 @@ export const PositionsTable = ({ vault }: PositionsTableProps) => {
 	}
 
 	return (
-		<Card className='h-full border-border-default/50 bg-surface-card/50 backdrop-blur-sm'>
+		<Card className='min-h-[200px] border-border-default/50 bg-surface-card/50 backdrop-blur-sm'>
 			<CardHeader className='px-4 py-3 border-b border-border-default/40'>
 				<div className='flex items-center justify-between'>
 					<CardTitle className='text-sm font-medium'>
