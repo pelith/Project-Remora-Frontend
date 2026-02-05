@@ -53,7 +53,12 @@ export function calculateSmartRightAxisMax(
 	});
 
 	// Return maximum constraint (strictest limit) to ensure all positions satisfy
-	return constraints.length > 0 ? Math.max(...constraints) : 1000;
+	// Add a reasonable upper bound to prevent extreme scaling
+	const calculatedMax = constraints.length > 0 ? Math.max(...constraints) : 1000;
+	const maxLiquidity = Math.max(...agentPositions.map(p => p.liquidity));
+	// Use a multiplier (e.g., 1.2x) of max position liquidity as upper bound
+	const reasonableMax = maxLiquidity * 1.5;
+	return Math.min(calculatedMax, reasonableMax);
 }
 
 /**

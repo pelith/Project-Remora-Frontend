@@ -76,8 +76,15 @@ function createOverlayPlugin(
 				const chartHeight = yAxisRight.bottom - yAxisRight.top;
 				
 				// Calculate height based on right axis
-				const heightRatio = chartData.rightYMax > 0 
-					? position.liquidity / chartData.rightYMax 
+				// Use a more reasonable scaling: ensure positions are visible
+				const maxPositionLiquidity = Math.max(
+					...chartData.agentPositions.map(p => p.liquidity),
+					position.liquidity
+				);
+				// Scale based on max position, not rightYMax (which might be too large)
+				const effectiveMax = Math.max(chartData.rightYMax, maxPositionLiquidity * 1.2);
+				const heightRatio = effectiveMax > 0 
+					? position.liquidity / effectiveMax 
 					: 0;
 				const calculatedHeight = chartHeight * heightRatio;
 
@@ -93,8 +100,11 @@ function createOverlayPlugin(
 				}
 
 				// Apply constraints: calculated height, min height, max market height
+				// But prioritize visibility - ensure at least MIN_HEIGHT_PX
 				let finalHeight = Math.max(calculatedHeight, MIN_HEIGHT_PX);
-				if (minMarketHeightInRange !== Infinity && minMarketHeightInRange > 0) {
+				
+				// Only constrain by market height if it's reasonable (not too restrictive)
+				if (minMarketHeightInRange !== Infinity && minMarketHeightInRange > MIN_HEIGHT_PX) {
 					finalHeight = Math.min(finalHeight, minMarketHeightInRange);
 				}
 
@@ -105,9 +115,28 @@ function createOverlayPlugin(
 						minMarketHeightInRange,
 						liquidity: position.liquidity,
 						rightYMax: chartData.rightYMax,
+						effectiveMax,
 						heightRatio,
 					});
 					finalHeight = MIN_HEIGHT_PX; // Fallback to minimum
+				}
+
+				// Debug log for first position
+				if (idx === 0) {
+					console.log('Position rendering debug:', {
+						position: position,
+						lowerIndex,
+						upperIndex,
+						leftX,
+						rightX,
+						width,
+						chartHeight,
+						calculatedHeight,
+						finalHeight,
+						heightRatio,
+						rightYMax: chartData.rightYMax,
+						effectiveMax,
+					});
 				}
 
 				const topY = yAxisRight.bottom - finalHeight;
@@ -384,7 +413,12 @@ export const LiquidityDistributionChart = ({
 					type: 'linear',
 					position: 'right',
 					min: 0,
-					max: chartData.rightYMax,
+					// Use max position liquidity * 1.2 for better visibility
+					max: chartData.agentPositions.length > 0
+						? Math.max(
+								...chartData.agentPositions.map(p => p.liquidity),
+							) * 1.2
+						: chartData.rightYMax,
 					grid: { drawOnChartArea: false },
 					ticks: {
 						color: 'rgba(255, 152, 0, 1)',
