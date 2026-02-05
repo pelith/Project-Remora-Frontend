@@ -14,7 +14,6 @@ import { Bar } from 'react-chartjs-2';
 import type { Vault } from '../types/vault.types';
 import {
 	generateLiquidityChartData,
-	type AgentPosition,
 } from '../utils/liquidity-chart-utils';
 import { Card } from '@/modules/common/components/ui/card';
 import { TrendingUp } from 'lucide-react';
@@ -344,6 +343,7 @@ export const LiquidityDistributionChart = ({
 						},
 						label: (context) => {
 							const value = context.parsed.y;
+							if (value == null) return 'Market Liquidity: $0';
 							return 'Market Liquidity: $' + value.toLocaleString();
 						},
 						afterBody: (context) => {
@@ -405,7 +405,7 @@ export const LiquidityDistributionChart = ({
 						display: true,
 						text: `Price Range (${vault.poolKey.token0.symbol}/${vault.poolKey.token1.symbol})`,
 						color: 'hsl(0 0% 70%)',
-						font: { size: 12, weight: '600' },
+						font: { size: 12, weight: 600 },
 					},
 				},
 				yLeft: {
@@ -422,7 +422,7 @@ export const LiquidityDistributionChart = ({
 						display: true,
 						text: 'Market Liquidity',
 						color: 'rgba(14, 165, 233, 1)',
-						font: { size: 12, weight: '600' },
+						font: { size: 12, weight: 600 },
 					},
 				},
 				yRight: {
@@ -446,7 +446,7 @@ export const LiquidityDistributionChart = ({
 						display: true,
 						text: 'Agent Positions',
 						color: 'rgba(255, 152, 0, 1)',
-						font: { size: 12, weight: '600' },
+						font: { size: 12, weight: 600 },
 					},
 				},
 			},
