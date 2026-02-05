@@ -123,14 +123,14 @@ export const createVaultAtom = atom(
 
 			// Determine initial tick range based on risk profile
 			if (data.riskProfile === 'conservative') {
-				initialTickLower = -500;
-				initialTickUpper = 500;
+				initialTickLower = -5000;
+				initialTickUpper = 5000;
 			} else if (data.riskProfile === 'standard') {
-				initialTickLower = -1000;
-				initialTickUpper = 1000;
-			} else if (data.riskProfile === 'aggressive') {
 				initialTickLower = -2000;
 				initialTickUpper = 2000;
+			} else if (data.riskProfile === 'aggressive') {
+				initialTickLower = -1000;
+				initialTickUpper = 1000;
 			} else {
 				// Custom
 				initialTickLower = data.customRange.min

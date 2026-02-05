@@ -250,8 +250,8 @@ export const CreateVaultSheet = ({
 									{
 										value: 'conservative',
 										label: 'Conservative',
-										range: '±10% range',
-										desc: getRangeDisplay(-1000, 1000, currentBasePrice),
+										range: '±50% range',
+										desc: getRangeDisplay(-5000, 5000, currentBasePrice),
 									},
 									{
 										value: 'standard',
@@ -262,8 +262,8 @@ export const CreateVaultSheet = ({
 									{
 										value: 'aggressive',
 										label: 'Aggressive',
-										range: '±50% range',
-										desc: getRangeDisplay(-5000, 5000, currentBasePrice),
+										range: '±10% range',
+										desc: getRangeDisplay(-1000, 1000, currentBasePrice),
 									},
 									{
 										value: 'custom',
