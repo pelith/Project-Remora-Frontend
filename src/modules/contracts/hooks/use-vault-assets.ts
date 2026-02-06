@@ -17,7 +17,9 @@ interface UseVaultAssetsProps {
 
 export interface VaultAssetsData {
 	token0?: {
-		amount: string; // Formatted amount as string (estimated)
+		amount: string; // Formatted amount as string (estimated) = idleAmount + positionAmount
+		idleAmount: string; // Idle balance amount (from contract balanceOf)
+		positionAmount: string; // Position amount (from API)
 		price: number; // Price in USD
 		valueUSD: string; // Value in USD as string
 		symbol: string;
@@ -25,6 +27,8 @@ export interface VaultAssetsData {
 	};
 	token1?: {
 		amount: string;
+		idleAmount: string; // Idle balance amount (from contract balanceOf)
+		positionAmount: string; // Position amount (from API)
 		price: number;
 		valueUSD: string;
 		symbol: string;
@@ -131,8 +135,14 @@ export function useVaultAssets({ vaultAddress }: UseVaultAssetsProps) {
 				positionAmountsQuery.data?.amount0 ?? '0',
 			);
 
-			const totalToken0Raw = idleToken0Raw + positionToken0Raw;
+			// Format individual amounts
+			const idleToken0Amount = formatUnits(idleToken0Raw, token0Decimals);
+			const positionToken0Amount = formatUnits(
+				positionToken0Raw,
+				token0Decimals,
+			);
 
+			const totalToken0Raw = idleToken0Raw + positionToken0Raw;
 			const totalToken0Amount = formatUnits(totalToken0Raw, token0Decimals);
 
 			// If we have price, calculate valueUSD
@@ -142,6 +152,8 @@ export function useVaultAssets({ vaultAddress }: UseVaultAssetsProps) {
 				);
 				result.token0 = {
 					amount: totalToken0Amount,
+					idleAmount: idleToken0Amount,
+					positionAmount: positionToken0Amount,
 					price: token0Price.data.price,
 					valueUSD: token0ValueUSD.toFixed(2),
 					symbol: token0Info.symbol,
@@ -151,6 +163,8 @@ export function useVaultAssets({ vaultAddress }: UseVaultAssetsProps) {
 				// If no price, still return amount info but without valueUSD
 				result.token0 = {
 					amount: totalToken0Amount,
+					idleAmount: idleToken0Amount,
+					positionAmount: positionToken0Amount,
 					price: 0,
 					valueUSD: '0',
 					symbol: token0Info.symbol,
@@ -173,6 +187,13 @@ export function useVaultAssets({ vaultAddress }: UseVaultAssetsProps) {
 				positionAmountsQuery.data?.amount1 ?? '0',
 			);
 
+			// Format individual amounts
+			const idleToken1Amount = formatUnits(idleToken1Raw, token1Decimals);
+			const positionToken1Amount = formatUnits(
+				positionToken1Raw,
+				token1Decimals,
+			);
+
 			const totalToken1Raw = idleToken1Raw + positionToken1Raw;
 			const totalToken1Amount = formatUnits(totalToken1Raw, token1Decimals);
 
@@ -183,6 +204,8 @@ export function useVaultAssets({ vaultAddress }: UseVaultAssetsProps) {
 
 				result.token1 = {
 					amount: totalToken1Amount,
+					idleAmount: idleToken1Amount,
+					positionAmount: positionToken1Amount,
 					price: token1Price.data.price,
 					valueUSD: token1ValueUSD.toFixed(2),
 					symbol: token1Info.symbol,
@@ -192,6 +215,8 @@ export function useVaultAssets({ vaultAddress }: UseVaultAssetsProps) {
 				// If no price, still return amount info but without valueUSD
 				result.token1 = {
 					amount: totalToken1Amount,
+					idleAmount: idleToken1Amount,
+					positionAmount: positionToken1Amount,
 					price: 0,
 					valueUSD: '0',
 					symbol: token1Info.symbol,
