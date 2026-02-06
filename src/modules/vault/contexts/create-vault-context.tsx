@@ -16,8 +16,10 @@ import {
 	TOKEN_ADDRESSES,
 } from '@/modules/contracts/constants/pool-examples';
 import { useTokenInfoAndBalance } from '@/modules/contracts/hooks/use-token-info-and-balance';
+import { useTokenPrice } from '@/modules/contracts/hooks/use-token-price';
 import { useCreateVault } from '@/modules/contracts/hooks/use-user-vault';
 import type { CreateVaultFormData, Pool, Token } from '../types/vault.types';
+import { priceToTick } from '../utils/vault-utils';
 
 type BalanceInfo = {
 	display?: string;
@@ -34,7 +36,6 @@ type CreateVaultContextValue = {
 	isConnected: boolean;
 	token0?: Token;
 	token1?: Token;
-	currentBasePrice: number;
 	token0Balance: BalanceInfo;
 	token1Balance: BalanceInfo;
 	updateData: (updates: Partial<CreateVaultFormData>) => void;
@@ -47,7 +48,6 @@ type CreateVaultContextValue = {
 	handleCreate: () => Promise<void>;
 	isNextDisabled: () => boolean;
 	formatPrice: (price: number) => string;
-	getRangeDisplay: (lower: number, upper: number, basePrice: number) => string;
 };
 
 const CreateVaultContext = createContext<CreateVaultContextValue | null>(null);
@@ -101,7 +101,6 @@ const INITIAL_DATA: CreateVaultFormData = {
 	depositAmount: { token0: '', token1: '' },
 };
 
-const currentBasePrice = 100;
 type CreateVaultProviderProps = {
 	children: ReactNode;
 	onOpenChange: (open: boolean) => void;
@@ -139,6 +138,23 @@ export function CreateVaultProvider({
 		chainId,
 	);
 
+	// 獲取兩個 token 的 USD 價格
+	const { data: token0PriceData } = useTokenPrice({
+		id: token0?.symbol?.toLowerCase() ?? '',
+		vsCurrency: 'usd',
+	});
+	const { data: token1PriceData } = useTokenPrice({
+		id: token1?.symbol?.toLowerCase() ?? '',
+		vsCurrency: 'usd',
+	});
+
+	const token0Price = token0PriceData?.price ?? 1;
+	const token1Price = token1PriceData?.price ?? 1;
+
+	// 判斷哪個是報價 token (價格較高的)
+	const isToken0Base = token0Price > token1Price;
+	const baseTokenPrice = isToken0Base ? token0Price : token1Price;
+
 	console.log(token0Erc20, token1Erc20);
 
 	const token0BalanceInfo = token0Erc20;
@@ -168,23 +184,8 @@ export function CreateVaultProvider({
 		return new Intl.NumberFormat('en-US', {
 			style: 'currency',
 			currency: 'USD',
-			maximumFractionDigits: 0,
+			maximumFractionDigits: 2,
 		}).format(price);
-	};
-
-	const getPriceFromTick = (tick: number, basePrice: number) => {
-		return basePrice * (1 + tick / 10000);
-	};
-
-	const getRangeDisplay = (lower: number, upper: number, basePrice: number) => {
-		const p1 = getPriceFromTick(lower, basePrice);
-		const p2 = getPriceFromTick(upper, basePrice);
-		return `${formatPrice(p1)} - ${formatPrice(p2)}`;
-	};
-
-	const getTickFromPrice = (price: number, basePrice: number) => {
-		if (basePrice === 0) return 0;
-		return Math.round((price / basePrice - 1) * 10000);
 	};
 
 	const updateData = (updates: Partial<CreateVaultFormData>) => {
@@ -220,37 +221,54 @@ export function CreateVaultProvider({
 	const handleCreate = async () => {
 		try {
 			const finalData = { ...formData };
+			const decimal0 = token0?.decimals ?? 6;
+			const decimal1 = token1?.decimals ?? 18;
+
+			let tickLower = 0;
+			let tickUpper = 0;
 
 			if (formData.riskProfile === 'custom') {
+				// Custom: 用戶輸入的是 base token 的 USD 價格
 				const minPrice = Number.parseFloat(formData.customRange.min);
 				const maxPrice = Number.parseFloat(formData.customRange.max);
 
 				if (!Number.isNaN(minPrice) && !Number.isNaN(maxPrice)) {
-					finalData.customRange = {
-						min: getTickFromPrice(minPrice, currentBasePrice).toString(),
-						max: getTickFromPrice(maxPrice, currentBasePrice).toString(),
-					};
+					// 根據哪個 token 是 base token，決定如何轉換
+					if (isToken0Base) {
+						// token0 是 base (例如 ETH)，價格是 token0 的 USD 價格
+						// 需要轉換為 tick (表示 token0/token1 的比率)
+						tickLower = priceToTick(minPrice, decimal1, decimal0);
+						tickUpper = priceToTick(maxPrice, decimal1, decimal0);
+					} else {
+						// token1 是 base (例如 ETH)，價格是 token1 的 USD 價格
+						tickLower = priceToTick(minPrice, decimal0, decimal1);
+						tickUpper = priceToTick(maxPrice, decimal0, decimal1);
+					}
 				}
 			} else {
-				let tickLower = 0;
-				let tickUpper = 0;
+				// 預設選項：基於當前 base token 價格計算範圍
+				let percentage = 0;
 				if (formData.riskProfile === 'conservative') {
-					tickLower = -5000;
-					tickUpper = 5000;
+					percentage = 0.5; // ±50%
 				} else if (formData.riskProfile === 'standard') {
-					tickLower = -2000;
-					tickUpper = 2000;
+					percentage = 0.2; // ±20%
 				} else if (formData.riskProfile === 'aggressive') {
-					tickLower = -1000;
-					tickUpper = 1000;
+					percentage = 0.1; // ±10%
 				}
-				finalData.customRange = {
-					min: tickLower.toString(),
-					max: tickUpper.toString(),
-				};
-			}
-			// build relative vault data with api
 
+				const minPrice = baseTokenPrice * (1 - percentage);
+				const maxPrice = baseTokenPrice * (1 + percentage);
+
+				if (isToken0Base) {
+					tickLower = priceToTick(minPrice, decimal1, decimal0);
+					tickUpper = priceToTick(maxPrice, decimal1, decimal0);
+				} else {
+					tickLower = priceToTick(minPrice, decimal0, decimal1);
+					tickUpper = priceToTick(maxPrice, decimal0, decimal1);
+				}
+			}
+
+			// build relative vault data with api
 			await createVault({
 				poolKey: {
 					currency0: token0Address as `0x${string}`,
@@ -261,8 +279,8 @@ export function CreateVaultProvider({
 				},
 				// should update to bot agent.
 				agent: address as `0x${string}`,
-				allowedTickLower: Number(finalData.customRange.min),
-				allowedTickUpper: Number(finalData.customRange.max),
+				allowedTickLower: tickLower,
+				allowedTickUpper: tickUpper,
 				swapAllowed: finalData.swapAllowed,
 				maxPositionsK: BigInt(finalData.maxPositions),
 			});
@@ -288,7 +306,6 @@ export function CreateVaultProvider({
 		isConnected,
 		token0,
 		token1,
-		currentBasePrice,
 		token0Balance,
 		token1Balance,
 		updateData,
@@ -299,7 +316,6 @@ export function CreateVaultProvider({
 		handleCreate,
 		isNextDisabled,
 		formatPrice,
-		getRangeDisplay,
 	};
 
 	return (

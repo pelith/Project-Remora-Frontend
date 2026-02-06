@@ -98,11 +98,11 @@ export const VaultCard = ({
 							<div className='flex gap-2 text-xs text-text-secondary'>
 								<div className='flex items-center gap-1'>
 									<Wallet className='w-3 h-3' />
-									{availableToken0} {token0Symbol}
+									{formatValueToStandardDisplay(availableToken0)} {token0Symbol}
 								</div>
 								<div>+</div>
 								<div>
-									{availableToken1} {token1Symbol}
+									{formatValueToStandardDisplay(availableToken1)} {token1Symbol}
 								</div>
 							</div>
 

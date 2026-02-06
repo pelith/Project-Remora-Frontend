@@ -16,7 +16,7 @@ export function getMockPrice(symbol: string): number {
 export function generateMockPositions(
 	totalUSD: number,
 	maxPositions: number,
-	currentPrice: number = 2138.11, // Default ETH price matching chart peak
+	currentPrice = 2138.11, // Default ETH price matching chart peak
 ): Position[] {
 	// If maxPositions is 0 (Unlimited), default to 5 for the demo
 	const k = maxPositions === 0 ? 5 : Math.max(1, maxPositions);
@@ -118,4 +118,55 @@ export function formatCurrency(val: number): string {
 		currency: 'USD',
 		maximumFractionDigits: 0,
 	}).format(val);
+}
+
+/**
+ * 將 ETH 價格 (例如 3000) 轉換為 Uniswap V3 Tick
+ * 假設池子是 Token0=USDC (6), Token1=WETH (18)
+ * @param priceUsdPerEth - ETH 的 USD 價格 (例如 3000)
+ * @param decimal0 - Token0 的小數位數 (USDC = 6)
+ * @param decimal1 - Token1 的小數位數 (WETH = 18)
+ * @returns Tick 值
+ */
+export function priceToTick(
+	priceUsdPerEth: number,
+	decimal0 = 6,
+	decimal1 = 18,
+): number {
+	if (priceUsdPerEth === 0) return 887272; // 價格為 0，對應最大 Tick
+
+	// 計算 Raw Price (Uniswap 內部的價格比率)
+	// 公式: RawPrice = (1 / PriceHuman) * 10^(Decimal1 - Decimal0)
+	const decimalDiff = decimal1 - decimal0;
+	const rawPrice = (1 / priceUsdPerEth) * Math.pow(10, decimalDiff);
+
+	// 計算 Tick
+	// 公式: tick = log_1.0001(rawPrice) = ln(rawPrice) / ln(1.0001)
+	const tick = Math.log(rawPrice) / Math.log(1.0001);
+
+	// 取整數
+	return Math.floor(tick);
+}
+
+/**
+ * 將 Tick 轉換為人類可讀的價格
+ * @param tick - Tick 值
+ * @param decimal0 - Token0 的小數位數 (USDC = 6)
+ * @param decimal1 - Token1 的小數位數 (WETH = 18)
+ * @returns ETH 的 USD 價格
+ */
+export function tickToPrice(
+	tick: number,
+	decimal0 = 6,
+	decimal1 = 18,
+): number {
+	// 計算 Raw Price
+	const rawPrice = Math.pow(1.0001, tick);
+
+	// 轉換為人類可讀價格
+	// PriceHuman = 10^(Decimal1 - Decimal0) / RawPrice
+	const decimalDiff = decimal1 - decimal0;
+	const priceUsdPerEth = Math.pow(10, decimalDiff) / rawPrice;
+
+	return priceUsdPerEth;
 }

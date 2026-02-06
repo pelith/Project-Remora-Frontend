@@ -9,6 +9,7 @@ import {
 } from '@/modules/common/components/ui/radio-group';
 import { Switch } from '@/modules/common/components/ui/switch';
 import { useCreateVaultContext } from '../../contexts/create-vault-context';
+import { useTokenPrice } from '@/modules/contracts/hooks/use-token-price';
 
 export function CreateVaultStep2Container() {
 	const {
@@ -17,10 +18,38 @@ export function CreateVaultStep2Container() {
 		updateData,
 		setLastLimit,
 		handleProfileChange,
-		currentBasePrice,
 		formatPrice,
-		getRangeDisplay,
 	} = useCreateVaultContext();
+
+	const token0 = formData.selectedPool?.token0;
+	const token1 = formData.selectedPool?.token1;
+
+	// 獲取兩個 token 的價格
+	const { data: token0PriceData } = useTokenPrice({
+		id: token0?.symbol?.toLowerCase() ?? '',
+		vsCurrency: 'usd',
+	});
+	const { data: token1PriceData } = useTokenPrice({
+		id: token1?.symbol?.toLowerCase() ?? '',
+		vsCurrency: 'usd',
+	});
+
+	const token0Price = token0PriceData?.price ?? 1;
+	const token1Price = token1PriceData?.price ?? 1;
+
+	// 判斷哪個是報價 token (通常是價格較高的)
+	// 在 Uniswap 中，價格通常表示為 token1/token0 的比率
+	// 但我們要顯示的是用戶更關心的那個 token 的價格範圍
+	const isToken0Base = token0Price > token1Price;
+	const baseTokenPrice = isToken0Base ? token0Price : token1Price;
+	const baseTokenSymbol = isToken0Base ? token0?.symbol : token1?.symbol;
+
+	// 計算價格範圍顯示
+	const getPriceRangeDisplay = (percentage: number) => {
+		const minPrice = baseTokenPrice * (1 - percentage);
+		const maxPrice = baseTokenPrice * (1 + percentage);
+		return `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
+	};
 
 	return (
 		<div className='space-y-6 py-4'>
@@ -46,32 +75,32 @@ export function CreateVaultStep2Container() {
 					}
 					className='grid grid-cols-2 gap-4'
 				>
-					{[
-						{
-							value: 'conservative',
-							label: 'Conservative',
-							range: '±50% range',
-							desc: getRangeDisplay(-5000, 5000, currentBasePrice),
-						},
-						{
-							value: 'standard',
-							label: 'Standard',
-							range: '±20% range',
-							desc: getRangeDisplay(-2000, 2000, currentBasePrice),
-						},
-						{
-							value: 'aggressive',
-							label: 'Aggressive',
-							range: '±10% range',
-							desc: getRangeDisplay(-1000, 1000, currentBasePrice),
-						},
-						{
-							value: 'custom',
-							label: 'Custom',
-							range: 'Manual set',
-							desc: 'Custom price range',
-						},
-					].map((opt) => (
+				{[
+					{
+						value: 'conservative',
+						label: 'Conservative',
+						range: '±50% range',
+						desc: getPriceRangeDisplay(0.5),
+					},
+					{
+						value: 'standard',
+						label: 'Standard',
+						range: '±20% range',
+						desc: getPriceRangeDisplay(0.2),
+					},
+					{
+						value: 'aggressive',
+						label: 'Aggressive',
+						range: '±10% range',
+						desc: getPriceRangeDisplay(0.1),
+					},
+					{
+						value: 'custom',
+						label: 'Custom',
+						range: 'Manual set',
+						desc: 'Custom price range',
+					},
+				].map((opt) => (
 						<div key={opt.value}>
 							<RadioGroupItem
 								value={opt.value}
@@ -105,10 +134,11 @@ export function CreateVaultStep2Container() {
 			>
 				<div className='grid grid-cols-2 gap-4'>
 					<div className='space-y-2'>
-						<Label>Min Price</Label>
+						<Label>Min Price ({baseTokenSymbol || 'Token'} in USD)</Label>
 						<Input
 							type='number'
-							placeholder={`e.g. ${formatPrice(currentBasePrice * 0.9).replace('$', '')}`}
+							step='0.01'
+							placeholder={`e.g. ${formatPrice(baseTokenPrice * 0.9).replace('$', '')}`}
 							value={formData.customRange.min}
 							onChange={(e) =>
 								updateData({
@@ -122,10 +152,11 @@ export function CreateVaultStep2Container() {
 						/>
 					</div>
 					<div className='space-y-2'>
-						<Label>Max Price</Label>
+						<Label>Max Price ({baseTokenSymbol || 'Token'} in USD)</Label>
 						<Input
 							type='number'
-							placeholder={`e.g. ${formatPrice(currentBasePrice * 1.1).replace('$', '')}`}
+							step='0.01'
+							placeholder={`e.g. ${formatPrice(baseTokenPrice * 1.1).replace('$', '')}`}
 							value={formData.customRange.max}
 							onChange={(e) =>
 								updateData({
