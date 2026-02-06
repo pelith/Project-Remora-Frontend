@@ -7,22 +7,9 @@ import {
 	fetchPositionTokenAmounts,
 	type PositionTokenAmountRequest,
 } from '../services/position-token-amount-api';
+import { useTokenPrice } from './use-token-price';
 import { useVault } from './use-user-vault';
 import { useVaultAvailableBalance } from './use-vault-available-balance';
-
-// function getCoingeckoId(symbol?: string) {
-// 	if (!sym_getCoingeckoIddefined;
-// 	const normalized = symbol.toLowerCase();
-// 	const map: Record<string, string> = {
-// 		eth: 'ethereum',
-// 		weth: 'weth',
-// 		wbtc: 'wrapped-bitcoin',
-// 		usdc: 'usd-coin',
-// 		usdt: 'tether',
-// 		uni: 'uniswap',
-// 	};
-// 	return map[normalized];
-// }
 
 interface UseVaultAssetsProps {
 	vaultAddress: string;
@@ -117,50 +104,14 @@ export function useVaultAssets({ vaultAddress }: UseVaultAssetsProps) {
 		  }
 		| undefined;
 
-	// TODO: Remove this mock data
-	const token0Price: any = {
-		data: {
-			id: 'ethereum',
-			vsCurrency: 'usd',
-			price: 2000.32,
-			raw: {
-				usd: 2000.32,
-				usd_24h_change: 202.34,
-			},
-		},
-	};
-
-	const token1Price: any = {
-		data: {
-			id: 'usdc',
-			vsCurrency: 'usd',
-			price: 1,
-			raw: {
-				usd: 1,
-				usd_24h_change: 0.1,
-			},
-		},
-	};
-
-	// TODO: useTokenPrice hook should be used instead of this mock data
-	// Get token prices
-	// const token0Price = useTokenPrice(
-	// 	{
-	// 		id: getCoingeckoId(token0Info?.symbol) ?? '',
-	// 	},
-	// 	{
-	// 		enabled: Boolean(getCoingeckoId(token0Info?.symbol)),
-	// 	},
-	// );
-
-	// const token1Price = useTokenPrice(
-	// 	{
-	// 		id: getCoingeckoId(token1Info?.symbol) ?? '',
-	// 	},
-	// 	{
-	// 		enabled: Boolean(getCoingeckoId(token1Info?.symbol)),
-	// 	},
-	// );
+	const token0Price = useTokenPrice(
+		{ id: token0Info?.symbol ?? '' },
+		{ enabled: Boolean(token0Info?.symbol) },
+	);
+	const token1Price = useTokenPrice(
+		{ id: token1Info?.symbol ?? '' },
+		{ enabled: Boolean(token1Info?.symbol) },
+	);
 
 	// Calculate total assets - each field can be undefined independently
 	const data = useMemo((): VaultAssetsData => {
