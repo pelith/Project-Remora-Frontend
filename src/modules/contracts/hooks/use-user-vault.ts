@@ -125,7 +125,7 @@ export function useVault({ vaultAddress }: { vaultAddress: string }) {
 					maxPositionsKRaw: getResult(maxPositionsK)?.toString(),
 					positionsLengthRaw: getResult(positionsLength)?.toString(),
 					posm: getResult(posm),
-					agentPaused: getResult(agentPaused) === true ? 'active' : 'paused',
+					agentPaused: getResult(agentPaused) === true ? 'paused' : 'active',
 				};
 			},
 		},
