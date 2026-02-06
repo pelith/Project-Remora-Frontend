@@ -1,9 +1,10 @@
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
+import { usePublicClient } from 'wagmi';
 import {
 	fetchTokenPrice,
 	type TokenPriceRequest,
 	type TokenPriceResponse,
-} from '../services/coingecko-price-api';
+} from '../services/oracle-price-api';
 
 export interface UseTokenPriceOptions
 	extends Omit<
@@ -14,23 +15,29 @@ export interface UseTokenPriceOptions
 }
 
 /**
- * Fetch token price from Coingecko with 30s refresh by default.
+ * Fetch token price from mainnet oracle with 30s refresh by default.
  *
  * @example
- * const { data, isLoading, error } = useTokenPrice({ id: 'ethereum' });
+ * const { data, isLoading, error } = useTokenPrice({ id: 'eth' });
  */
 export function useTokenPrice(
 	request: TokenPriceRequest,
 	options?: UseTokenPriceOptions,
 ) {
+	const publicClient = usePublicClient();
 	const { refetchIntervalMs = 30_000, enabled, ...queryOptions } =
 		options ?? {};
 	const vsCurrency = request.vsCurrency ?? 'usd';
-	const isEnabled = Boolean(request.id) && (enabled ?? true);
+	const isEnabled = Boolean(publicClient && request.id) && (enabled ?? true);
 
 	return useQuery<TokenPriceResponse, Error, TokenPriceResponse>({
-		queryKey: ['coingecko-token-price', request.id, vsCurrency],
-		queryFn: () => fetchTokenPrice({ ...request, vsCurrency }),
+		queryKey: ['oracle-token-price', request.id, vsCurrency],
+		queryFn: () => {
+			if (!publicClient) {
+				throw new Error('Public client is not ready.');
+			}
+			return fetchTokenPrice(publicClient, { ...request, vsCurrency });
+		},
 		refetchInterval: refetchIntervalMs,
 		enabled: isEnabled,
 		...queryOptions,

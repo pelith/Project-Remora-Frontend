@@ -7,4 +7,4 @@ export {
 	fetchTokenPrice,
 	type TokenPriceRequest,
 	type TokenPriceResponse,
-} from './coingecko-price-api';
+} from './oracle-price-api';
