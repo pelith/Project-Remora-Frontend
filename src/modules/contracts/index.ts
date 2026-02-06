@@ -17,6 +17,7 @@ export { UNISWAP_V4_ADDRESSES } from './constants/uniswap-v4-addresses';
 // Hooks
 export { useLiquidityDistribution } from './hooks/use-liquidity-distribution';
 export { usePositionLiquidity } from './hooks/use-position-liquidity';
+export { useUniswapPoolTvl } from './hooks/use-uniswap-pool-tvl';
 export { useVaultAvailableBalance } from './hooks/use-vault-available-balance';
 export { useVaultPositionsBalance } from './hooks/use-vault-positions-balance';
 // API Services

@@ -9,6 +9,7 @@ import {
 	useState,
 } from 'react';
 import { toast } from 'sonner';
+import { zeroAddress } from 'viem';
 import formatValueToStandardDisplay from '@/modules/common/utils/formatValueToStandardDisplay';
 import {
 	EXAMPLE_POOL_KEYS,
@@ -100,7 +101,6 @@ const INITIAL_DATA: CreateVaultFormData = {
 	depositAmount: { token0: '', token1: '' },
 };
 
-const formDataAtom = atomWithReset<CreateVaultFormData>(INITIAL_DATA);
 const currentBasePrice = 100;
 type CreateVaultProviderProps = {
 	children: ReactNode;
@@ -111,6 +111,10 @@ export function CreateVaultProvider({
 	children,
 	onOpenChange,
 }: CreateVaultProviderProps) {
+	const formDataAtom = useMemo(
+		() => atomWithReset<CreateVaultFormData>(INITIAL_DATA),
+		[],
+	);
 	const { address, isConnected } = useAppKitAccount();
 	const chainId = 1;
 
@@ -134,6 +138,8 @@ export function CreateVaultProvider({
 		token1Address,
 		chainId,
 	);
+
+	console.log(token0Erc20, token1Erc20);
 
 	const token0BalanceInfo = token0Erc20;
 	const token1BalanceInfo = token1Erc20;
@@ -225,6 +231,23 @@ export function CreateVaultProvider({
 						max: getTickFromPrice(maxPrice, currentBasePrice).toString(),
 					};
 				}
+			} else {
+				let tickLower = 0;
+				let tickUpper = 0;
+				if (formData.riskProfile === 'conservative') {
+					tickLower = -5000;
+					tickUpper = 5000;
+				} else if (formData.riskProfile === 'standard') {
+					tickLower = -2000;
+					tickUpper = 2000;
+				} else if (formData.riskProfile === 'aggressive') {
+					tickLower = -1000;
+					tickUpper = 1000;
+				}
+				finalData.customRange = {
+					min: tickLower.toString(),
+					max: tickUpper.toString(),
+				};
 			}
 			// build relative vault data with api
 
@@ -234,8 +257,9 @@ export function CreateVaultProvider({
 					currency1: token1Address as `0x${string}`,
 					fee: formData.selectedPool?.fee ?? 0,
 					tickSpacing: 60,
-					hooks: '0x0000000000000000000000000000000000000000',
+					hooks: zeroAddress,
 				},
+				// should update to bot agent.
 				agent: address as `0x${string}`,
 				allowedTickLower: Number(finalData.customRange.min),
 				allowedTickUpper: Number(finalData.customRange.max),

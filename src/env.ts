@@ -17,6 +17,7 @@ export const env = createEnv({
 		VITE_REOWN_PROJECT_ID: z.string(),
 		VITE_API_BASE_URL: z.url().optional(),
 		VITE_COINGECKO_BASE_URL: z.url().optional(),
+		VITE_MAINNET_RPC_URL: z.url().optional(),
 	},
 
 	/**

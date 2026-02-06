@@ -1,8 +1,9 @@
 import { createAppKit } from '@reown/appkit/react';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { http } from 'wagmi';
-import { sepolia } from 'wagmi/chains';
+import { mainnet } from 'wagmi/chains';
 import { injected } from 'wagmi/connectors';
+import { env } from './env';
 
 const projectId = import.meta.env.VITE_REOWN_PROJECT_ID;
 
@@ -11,18 +12,20 @@ if (!projectId) {
 }
 
 export const config = new WagmiAdapter({
-	networks: [sepolia],
+	networks: [mainnet],
 	projectId,
 	ssr: false,
 	connectors: [injected()],
 	transports: {
-		[sepolia.id]: http(),
+		[mainnet.id]: http(
+			env.VITE_MAINNET_RPC_URL || mainnet.rpcUrls.default.http[0],
+		),
 	},
 });
 
 createAppKit({
 	adapters: [config],
-	networks: [sepolia],
+	networks: [mainnet],
 	projectId,
 	metadata: {
 		name: 'Project Remora',

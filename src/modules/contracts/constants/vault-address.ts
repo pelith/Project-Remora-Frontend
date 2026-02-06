@@ -1,0 +1,2 @@
+export const VAULT_FACTORY_ADDRESS =
+	'0x9b85077bfb4f984a1df562dAEE5fb1Af10c102af';

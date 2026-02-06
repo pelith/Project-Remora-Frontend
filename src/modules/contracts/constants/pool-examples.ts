@@ -12,7 +12,10 @@ export const TOKEN_ADDRESSES = {
 	// DAI: '0x6B175474E89094C44Da98b954EedeAC495271d0F' as const,
 } as const;
 
-export const TOKEN_METADATA = {
+export const TOKEN_METADATA: Record<
+	string,
+	{ symbol: string; name: string; decimals: number; img: string }
+> = {
 	ETH: {
 		symbol: 'ETH',
 		name: 'Ethereum',
