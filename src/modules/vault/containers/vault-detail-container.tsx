@@ -11,6 +11,7 @@ import {
 	Upload,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useChainId } from 'wagmi';
 import { cn } from '@/lib/utils';
 import { Container } from '@/modules/common/components/layout/container';
 import { Badge } from '@/modules/common/components/ui/badge';
@@ -28,7 +29,6 @@ import {
 	useVaultPositionsBalance,
 } from '@/modules/contracts';
 import { useVault as useVaultOnChain } from '@/modules/contracts/hooks/use-user-vault';
-import { useChainId } from 'wagmi';
 import {
 	AgentControlDialog,
 	DepositSheet,
@@ -49,22 +49,32 @@ export default function VaultDetailContainer({
 	vaultId,
 }: VaultDetailContainerProps) {
 	const navigate = useNavigate();
-	const getVault = useMemo(() => getVaultAtom(vaultId), [vaultId]);
-	const vault = useAtomValue(getVault);
 	const chainId = useChainId();
+
+	// Check if vaultId is a chain address (starts with 0x)
+	const isChainAddress = vaultId.startsWith('0x');
+
+	// If it's a chain address, use it directly; otherwise try to find in mock vaults
+	const vaultAddress = isChainAddress ? vaultId : undefined;
+	const getVault = useMemo(() => getVaultAtom(vaultId), [vaultId]);
+	const mockVault = useAtomValue(getVault);
+
+	// Use chain address if provided, otherwise use mock vault address
+	const finalVaultAddress = vaultAddress ?? mockVault?.vaultAddress ?? '';
+
 	const onChainVault = useVaultOnChain({
-		vaultAddress: vault?.vaultAddress ?? '',
+		vaultAddress: finalVaultAddress,
 	});
 	const availableBalanceData = useVaultAvailableBalance({
-		vaultAddress: vault?.vaultAddress ?? '',
+		vaultAddress: finalVaultAddress,
 		currency0: (onChainVault.data?.currency0 ??
-			vault?.poolKey.token0.address) as `0x${string}` | undefined,
+			mockVault?.poolKey.token0.address) as `0x${string}` | undefined,
 		currency1: (onChainVault.data?.currency1 ??
-			vault?.poolKey.token1.address) as `0x${string}` | undefined,
+			mockVault?.poolKey.token1.address) as `0x${string}` | undefined,
 		chainId,
 	});
 	const { data: positionsBalanceData } = useVaultPositionsBalance({
-		vaultAddress: vault?.vaultAddress ?? '',
+		vaultAddress: finalVaultAddress,
 	});
 
 	const [isDepositOpen, setIsDepositOpen] = useState(false);
@@ -93,19 +103,21 @@ export default function VaultDetailContainer({
 			};
 		}
 		return {
-			token0: vault?.availableBalance.token0.toString() ?? '0',
-			token1: vault?.availableBalance.token1.toString() ?? '0',
+			token0: mockVault?.availableBalance.token0.toString() ?? '0',
+			token1: mockVault?.availableBalance.token1.toString() ?? '0',
 		};
 	}, [
 		availableBalanceData.currency0?.balance,
 		availableBalanceData.currency1?.balance,
-		vault?.availableBalance.token0,
-		vault?.availableBalance.token1,
+		mockVault?.availableBalance.token0,
+		mockVault?.availableBalance.token1,
 	]);
-	const inPositions =
-		positionsBalanceData ?? vault?.inPositions ?? { token0: 0, token1: 0 };
+	const inPositions = positionsBalanceData ??
+		mockVault?.inPositions ?? { token0: 0, token1: 0 };
 
-	if (!vault) {
+	// If we have chain address but no mock vault, we can still proceed with chain data
+	// If we have neither, show error
+	if (!finalVaultAddress && !mockVault) {
 		return (
 			<Container className='py-8'>
 				<div className='text-center py-20'>
@@ -117,6 +129,48 @@ export default function VaultDetailContainer({
 			</Container>
 		);
 	}
+
+	// Use mock vault for display if available, otherwise construct from chain data
+	const vault = mockVault ?? {
+		id: vaultId,
+		vaultAddress: finalVaultAddress,
+		poolKey: {
+			token0: {
+				symbol: '',
+				name: '',
+				decimals: 18,
+				address: onChainVault.data?.currency0 ?? '',
+			},
+			token1: {
+				symbol: '',
+				name: '',
+				decimals: 18,
+				address: onChainVault.data?.currency1 ?? '',
+			},
+			fee: onChainVault.data?.fee ?? 0,
+			id: '',
+		},
+		totalValueUSD: 0,
+		createdAt: Date.now(),
+		availableBalance: {
+			token0: Number.parseFloat(availableBalance.token0) || 0,
+			token1: Number.parseFloat(availableBalance.token1) || 0,
+		},
+		inPositions: {
+			token0: typeof inPositions.token0 === 'number' ? inPositions.token0 : 0,
+			token1: typeof inPositions.token1 === 'number' ? inPositions.token1 : 0,
+		},
+		agentStatus: onChainVault.data?.agentPaused ? 'paused' : 'active',
+		config: {
+			tickLower: onChainVault.data?.allowedTickLower ?? 0,
+			tickUpper: onChainVault.data?.allowedTickUpper ?? 0,
+			k: onChainVault.data?.maxPositionsKRaw
+				? Number(onChainVault.data.maxPositionsKRaw)
+				: 0,
+			swapAllowed: onChainVault.data?.swapAllowed ?? false,
+		},
+		positions: [],
+	};
 
 	const handleAgentControl = (action: 'start' | 'pause' | 'resume') => {
 		setAgentAction(action);

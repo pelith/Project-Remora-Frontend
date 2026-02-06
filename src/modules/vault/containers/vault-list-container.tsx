@@ -18,7 +18,7 @@ export default function VaultListContainer() {
 	const vaults = useAtomValue(vaultsAtom);
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
 	const { address = '' } = useAppKitAccount();
-	const { data, isLoading, refetch } = useUserVaultsIds({ address });
+	const { data, refetch } = useUserVaultsIds({ address });
 
 	const userVaultIds = data ?? [];
 
@@ -61,9 +61,19 @@ export default function VaultListContainer() {
 }
 
 function VaultCardContainer({ vaultAddress }: { vaultAddress: string }) {
-	const { data: vault } = useVault({ vaultAddress });
+	const { data: vault, isLoading } = useVault({ vaultAddress });
 	const token0 = useTokenInfoAndBalance(vaultAddress, vault?.currency0 ?? '');
 	const token1 = useTokenInfoAndBalance(vaultAddress, vault?.currency1 ?? '');
+
+	// Use vaultAddress as vaultId for navigation
+	// The vault detail page will use this address to fetch vault data
+	if (isLoading) {
+		return (
+			<div className='flex items-center justify-center p-8'>
+				<p className='text-text-muted'>Loading vault...</p>
+			</div>
+		);
+	}
 
 	return (
 		<VaultCard
@@ -73,7 +83,7 @@ function VaultCardContainer({ vaultAddress }: { vaultAddress: string }) {
 			totalValueUSD={'-'}
 			availableToken0={token0?.balance ?? '0'}
 			availableToken1={token1?.balance ?? '0'}
-			agentStatus={vault?.agentPaused ?? 'not-started'}
+			agentStatus={vault?.agentPaused ? 'paused' : 'active'}
 			fee={vault?.fee ?? 0}
 		/>
 	);
