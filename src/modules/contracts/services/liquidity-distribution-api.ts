@@ -1,5 +1,12 @@
 import { env } from '@/env';
-import type { PoolKey } from '../utils/get-pool-id';
+
+interface PoolKey {
+	currency0: string;
+	currency1: string;
+	fee: number;
+	tickSpacing: number;
+	hooks: string;
+}
 
 /**
  * Request payload for liquidity distribution API
@@ -17,12 +24,18 @@ export interface LiquidityDistributionRequest {
 export interface LiquidityDistributionResponse {
 	// TODO: Define the actual response structure based on API documentation
 	// Example structure (update as needed):
-	distribution?: Array<{
+	currentTick: number;
+	sqrtPriceX96: string;
+	initializedTicks: {
 		tick: number;
-		liquidity: string;
-		[key: string]: unknown;
-	}>;
-	[key: string]: unknown;
+		liquidityGross: `${number}`;
+		liquidityNet: `${number}`;
+	}[];
+	bins: {
+		tickLower: number;
+		tickUpper: number;
+		activeLiquidity: `${number}`;
+	}[];
 }
 
 /**
