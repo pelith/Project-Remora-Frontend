@@ -13,7 +13,7 @@ export interface PoolKey {
 }
 
 export interface UsePoolCurrentPriceProps {
-	poolKey: PoolKey | undefined;
+	poolKey?: PoolKey;
 	token0Decimals: number;
 	token1Decimals: number;
 	chainId: number;
@@ -41,6 +41,10 @@ export function usePoolCurrentPrice({
 		isAddress(poolKey.currency1) &&
 		isAddress(poolKey.hooks);
 
+	// If poolKey is undefined or query is disabled, don't show loading
+	const isQueryEnabled =
+		Boolean(stateView) && isPoolKeyValid && poolKey !== undefined;
+
 	const slot0Query = useReadContract({
 		address: stateView as Address,
 		abi: UNISWAP_V4_STATE_VIEW_ABI,
@@ -48,7 +52,7 @@ export function usePoolCurrentPrice({
 		args: poolKey ? [poolKey] : ([] as unknown as [PoolKey]),
 		chainId,
 		query: {
-			enabled: Boolean(stateView) && isPoolKeyValid && poolKey !== undefined,
+			enabled: isQueryEnabled,
 		},
 	});
 
@@ -78,10 +82,6 @@ export function usePoolCurrentPrice({
 			rawPrice,
 		};
 	}, [slot0Query.data, token0Decimals, token1Decimals]);
-
-	// If poolKey is undefined or query is disabled, don't show loading
-	const isQueryEnabled =
-		Boolean(stateView) && isPoolKeyValid && poolKey !== undefined;
 
 	return {
 		data: priceData,

@@ -3,15 +3,13 @@ import { useNavigate } from '@tanstack/react-router';
 import {
 	ChevronLeft,
 	Download,
-	Pause,
 	PieChart,
-	Play,
 	Settings,
 	Trash2,
 	Upload,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import { isAddress } from 'viem';
+import { useCallback, useMemo, useState } from 'react';
+import { type Address, isAddress, zeroAddress } from 'viem';
 import { cn } from '@/lib/utils';
 import { Container } from '@/modules/common/components/layout/container';
 import { Badge } from '@/modules/common/components/ui/badge';
@@ -22,8 +20,8 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/modules/common/components/ui/card';
-import { parseToBigNumber } from '@/modules/common/utils/bignumber';
 import formatValueToStandardDisplay from '@/modules/common/utils/formatValueToStandardDisplay';
+import { usePoolCurrentPrice } from '@/modules/contracts/hooks/use-pool-current-price';
 import { useVault } from '@/modules/contracts/hooks/use-user-vault';
 import { useVaultAssets } from '@/modules/contracts/hooks/use-vault-assets';
 import {
@@ -40,11 +38,23 @@ import {
 	WithdrawSheet,
 } from '../components';
 import type { Vault } from '../types/vault.types';
-import { formatCurrency, getMockPrice } from '../utils/vault-utils';
+import { formatCurrency } from '../utils/vault-utils';
 
 interface VaultDetailContainerProps {
 	vaultId: string;
 }
+
+// Hoisted static function - Rule 5.3
+const getAgentStatusColor = (status: string) => {
+	switch (status) {
+		case 'active':
+			return 'bg-primary/20 text-primary border-primary/40 shadow-[0_0_10px_rgba(255,51,133,0.3)] animate-pulse';
+		case 'paused':
+			return 'bg-warning/20 text-warning border-warning/40';
+		default:
+			return 'bg-text-muted/20 text-text-muted border-text-muted/40';
+	}
+};
 
 export default function VaultDetailContainer({
 	vaultId,
@@ -70,23 +80,10 @@ export default function VaultDetailContainer({
 		staleTime: 30_000, // 30 seconds
 	});
 
-	const [isDepositOpen, setIsDepositOpen] = useState(false);
-	const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
-	const [isFullExitOpen, setIsFullExitOpen] = useState(false);
-	const [isAgentControlOpen, setIsAgentControlOpen] = useState(false);
-	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-	const [agentAction, setAgentAction] = useState<'start' | 'pause' | 'resume'>(
-		'start',
-	);
-	const [withdrawDefaults, setWithdrawDefaults] = useState<
-		| {
-				token0: string;
-				token1: string;
-		  }
-		| undefined
-	>(undefined);
+	const [_isSettingsOpen, setIsSettingsOpen] = useState(false);
 
 	// Construct vault object from real chain data (must be before conditional returns)
+	// Rule 4.1: Calculate derived state during rendering - narrow dependencies
 	const vault = useMemo((): Vault | undefined => {
 		if (!onChainVault.data || !vaultAssets.data) return undefined;
 
@@ -140,6 +137,37 @@ export default function VaultDetailContainer({
 		};
 	}, [vaultId, vaultAddress, onChainVault.data, vaultAssets.data]);
 
+	// Rule 4.1: Derive currentPrice during rendering instead of computing inline
+	const { data: poolCurrentPriceInfo } = usePoolCurrentPrice({
+		poolKey: vault?.poolKey
+			? {
+					currency0: vault?.poolKey.token0.address as Address,
+					currency1: vault?.poolKey.token1.address as Address,
+					fee: vault?.poolKey.fee ?? 0,
+					tickSpacing: 60,
+					hooks: zeroAddress,
+				}
+			: undefined,
+		token0Decimals: vault?.poolKey.token0.decimals ?? 18,
+		token1Decimals: vault?.poolKey.token1.decimals ?? 18,
+		chainId: 1,
+	});
+
+	const currentPrice = poolCurrentPriceInfo?.rawPrice;
+
+	console.log('currentPrice', poolCurrentPriceInfo);
+
+	// Rule 4.7: Put interaction logic in event handlers with useCallback
+
+	// Rule 4.7: Memoize navigation handlers
+	const handleBackToVaults = useCallback(() => {
+		navigate({ to: '/' });
+	}, [navigate]);
+
+	const _handleOpenSettings = useCallback(() => {
+		setIsSettingsOpen(true);
+	}, []);
+
 	// Check if vault address is valid
 	if (!isVaultAddress) {
 		return (
@@ -148,7 +176,7 @@ export default function VaultDetailContainer({
 					<h1 className='text-2xl font-bold text-text-primary mb-4'>
 						Invalid vault address
 					</h1>
-					<Button onClick={() => navigate({ to: '/' })}>Back to Vaults</Button>
+					<Button onClick={handleBackToVaults}>Back to Vaults</Button>
 				</div>
 			</Container>
 		);
@@ -169,40 +197,6 @@ export default function VaultDetailContainer({
 		);
 	}
 
-	const handleAgentControl = (action: 'start' | 'pause' | 'resume') => {
-		setAgentAction(action);
-		setIsAgentControlOpen(true);
-	};
-
-	const handleFullExitSuccess = () => {
-		// Calculate total expected balance after exit (Available + InPositions)
-		const total0 = parseToBigNumber(
-			vault.availableBalance.token0.toString(),
-		).plus(vault.inPositions.token0);
-		const total1 = parseToBigNumber(
-			vault.availableBalance.token1.toString(),
-		).plus(vault.inPositions.token1);
-
-		setWithdrawDefaults({
-			token0: total0.toString(),
-			token1: total1.toString(),
-		});
-		setIsWithdrawOpen(true);
-	};
-
-	const getAgentStatusColor = (status: string) => {
-		switch (status) {
-			case 'active':
-				return 'bg-primary/20 text-primary border-primary/40 shadow-[0_0_10px_rgba(255,51,133,0.3)] animate-pulse';
-			case 'paused':
-				return 'bg-warning/20 text-warning border-warning/40';
-			default:
-				return 'bg-text-muted/20 text-text-muted border-text-muted/40';
-		}
-	};
-
-	const currentPrice = getMockPrice(vault.poolKey.token0.symbol);
-
 	return (
 		<Container className='pt-4 pb-16 space-y-6 animate-in fade-in duration-500'>
 			{/* Combined Header & KPI Section */}
@@ -212,7 +206,7 @@ export default function VaultDetailContainer({
 					<Button
 						variant='ghost'
 						className='pl-0 gap-1 text-white hover:text-primary -ml-2 h-auto py-0.5 mb-3 text-xs'
-						onClick={() => navigate({ to: '/' })}
+						onClick={handleBackToVaults}
 					>
 						<ChevronLeft className='w-3 h-3' /> Back to Vaults
 					</Button>
@@ -249,7 +243,7 @@ export default function VaultDetailContainer({
 							Current Price
 						</div>
 						<div className='text-lg font-bold text-text-primary'>
-							{formatCurrency(currentPrice)}
+							{formatValueToStandardDisplay(currentPrice ?? 0)}
 						</div>
 					</div>
 
@@ -288,74 +282,77 @@ export default function VaultDetailContainer({
 					<Card className='border-border-default/50 bg-surface-card/80'>
 						<CardContent className='p-3 space-y-2'>
 							{/* Agent Control - Moved to top */}
-							{vault.agentStatus === 'active' ? (
-								<Button
-									onClick={() => handleAgentControl('pause')}
-									className='w-full h-10 border-warning/20 bg-warning/80 text-warning-foreground hover:bg-warning hover:border-warning/30 text-xs font-semibold shadow-md shadow-warning/10'
-								>
-									<Pause className='w-3.5 h-3.5 mr-2' /> Pause Agent
-								</Button>
-							) : (
-								<Button
-									onClick={() =>
-										handleAgentControl(
-											vault.agentStatus === 'paused' ? 'resume' : 'start',
-										)
-									}
-									className={cn(
-										'w-full h-10 text-xs font-semibold shadow-md',
-										vault.agentStatus === 'not-started'
-											? 'bg-success hover:bg-success/90 text-success-foreground shadow-success/10'
-											: 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/10',
-									)}
-								>
-									<Play className='w-3.5 h-3.5 mr-2' />{' '}
-									{vault.agentStatus === 'paused'
-										? 'Resume Agent'
-										: 'Start Agent'}
-								</Button>
-							)}
+							{/* Rule 5.8: Use explicit conditional rendering */}
+
+							<AgentControlDialog
+								vaultAddress={vaultAddress}
+								vaultConfigK={vault.config.k}
+								vaultConfigTickLower={vault.config.tickLower}
+								vaultConfigTickUpper={vault.config.tickUpper}
+								vaultSwapAllowed={vault.config.swapAllowed}
+								vaultPoolKeyToken0Symbol={vault.poolKey.token0.symbol}
+								vaultPoolKeyToken1Symbol={vault.poolKey.token1.symbol}
+							/>
 
 							<div className='grid grid-cols-2 gap-2'>
-								<Button
-									variant='secondary'
-									onClick={() => setIsDepositOpen(true)}
-									size='sm'
-									className='w-full hover:bg-surface-elevated transition-all text-xs h-8 border border-border-default/50'
-								>
-									<Download className='w-3 h-3 mr-1.5' /> Deposit
-								</Button>
-								<Button
-									variant='secondary'
-									size='sm'
-									onClick={() => {
-										setWithdrawDefaults(undefined);
-										setIsWithdrawOpen(true);
-									}}
-									className='w-full hover:bg-surface-elevated text-xs h-8 border border-border-default/50'
-								>
-									<Upload className='w-3 h-3 mr-1.5' /> Withdraw
-								</Button>
+								<DepositSheet
+									vaultAddress={vaultAddress}
+									token0Address={vault.poolKey.token0.address ?? ''}
+									token1Address={vault.poolKey.token1.address ?? ''}
+									trigger={
+										<Button
+											variant='secondary'
+											size='sm'
+											className='w-full hover:bg-surface-elevated transition-all text-xs h-8 border border-border-default/50'
+										>
+											<Download className='w-3 h-3 mr-1.5' /> Deposit
+										</Button>
+									}
+								/>
+
+								<WithdrawSheet
+									vaultAddress={vaultAddress}
+									token0Address={onChainVault.data?.currency0 ?? ''}
+									token1Address={onChainVault.data?.currency1 ?? ''}
+									trigger={
+										<Button
+											variant='secondary'
+											size='sm'
+											className='w-full hover:bg-surface-elevated text-xs h-8 border border-border-default/50'
+										>
+											<Upload className='w-3 h-3 mr-1.5' /> Withdraw
+										</Button>
+									}
+								/>
 							</div>
 
-							<Button
-								variant='ghost'
-								size='sm'
-								className='w-full border border-border-default text-text-muted hover:text-text-primary text-xs h-8'
-								onClick={() => setIsSettingsOpen(true)}
-							>
-								<Settings className='w-3 h-3 mr-1.5' /> Configure Strategy
-							</Button>
+							<SettingsSheet
+								vault={vault}
+								vaultAddress={vaultAddress}
+								trigger={
+									<Button
+										variant='ghost'
+										size='sm'
+										className='w-full border border-border-default text-text-muted hover:text-text-primary text-xs h-8'
+									>
+										<Settings className='w-3 h-3 mr-1.5' /> Configure Strategy
+									</Button>
+								}
+							/>
 
 							<div className='pt-1'>
-								<Button
-									variant='ghost'
-									size='sm'
-									onClick={() => setIsFullExitOpen(true)}
-									className='w-full text-error/80 hover:text-error hover:bg-error/10 border border-error/20 h-6 text-[10px]'
-								>
-									<Trash2 className='w-3 h-3 mr-1.5' /> Full Exit
-								</Button>
+								<FullExitDialog
+									vaultAddress={vaultAddress}
+									trigger={
+										<Button
+											variant='ghost'
+											size='sm'
+											className='w-full text-error/80 hover:text-error hover:bg-error/10 border border-error/20 h-6 text-[10px]'
+										>
+											<Trash2 className='w-3 h-3 mr-1.5' /> Full Exit
+										</Button>
+									}
+								/>
 							</div>
 						</CardContent>
 					</Card>
@@ -443,41 +440,6 @@ export default function VaultDetailContainer({
 			</div>
 
 			{/* Dialogs & Sheets */}
-			<DepositSheet
-				vault={vault}
-				open={isDepositOpen}
-				onOpenChange={setIsDepositOpen}
-			/>
-
-			<WithdrawSheet
-				vault={vault}
-				open={isWithdrawOpen}
-				onOpenChange={(open) => {
-					setIsWithdrawOpen(open);
-					if (!open) setWithdrawDefaults(undefined);
-				}}
-				defaultAmounts={withdrawDefaults}
-			/>
-
-			<FullExitDialog
-				vault={vault}
-				open={isFullExitOpen}
-				onOpenChange={setIsFullExitOpen}
-				onSuccess={handleFullExitSuccess}
-			/>
-
-			<AgentControlDialog
-				vault={vault}
-				action={agentAction}
-				open={isAgentControlOpen}
-				onOpenChange={setIsAgentControlOpen}
-			/>
-
-			<SettingsSheet
-				vault={vault}
-				open={isSettingsOpen}
-				onOpenChange={setIsSettingsOpen}
-			/>
 		</Container>
 	);
 }

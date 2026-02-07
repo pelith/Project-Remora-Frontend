@@ -1,20 +1,20 @@
-import { useMemo } from 'react';
 import {
-	Chart as ChartJS,
-	CategoryScale,
-	LinearScale,
 	BarElement,
-	Tooltip,
-	Legend,
-	type ChartOptions,
+	CategoryScale,
 	type ChartData,
+	Chart as ChartJS,
+	type ChartOptions,
+	Legend,
+	LinearScale,
 	type Plugin,
+	Tooltip,
 } from 'chart.js';
+import { TrendingUp } from 'lucide-react';
+import { useMemo } from 'react';
 import { Bar } from 'react-chartjs-2';
+import { Card } from '@/modules/common/components/ui/card';
 import type { Vault } from '../types/vault.types';
 import { generateLiquidityChartData } from '../utils/liquidity-chart-utils';
-import { Card } from '@/modules/common/components/ui/card';
-import { TrendingUp } from 'lucide-react';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
@@ -89,7 +89,7 @@ function createOverlayPlugin(
 				const calculatedHeight = chartHeight * heightRatio;
 
 				// Find minimum market liquidity height in range (for constraint)
-				let minMarketHeightInRange = Infinity;
+				let minMarketHeightInRange = Number.POSITIVE_INFINITY;
 				for (
 					let i = lowerIndex;
 					i <= upperIndex && i < chartData.marketLiquidity.length;
@@ -109,7 +109,7 @@ function createOverlayPlugin(
 
 				// Only constrain by market height if it's reasonable (not too restrictive)
 				if (
-					minMarketHeightInRange !== Infinity &&
+					minMarketHeightInRange !== Number.POSITIVE_INFINITY &&
 					minMarketHeightInRange > MIN_HEIGHT_PX
 				) {
 					finalHeight = Math.min(finalHeight, minMarketHeightInRange);
@@ -338,12 +338,12 @@ export const LiquidityDistributionChart = ({
 					padding: 12,
 					callbacks: {
 						title: (context) => {
-							return 'Price: ' + context[0].label;
+							return `Price: ${context[0].label}`;
 						},
 						label: (context) => {
 							const value = context.parsed.y;
 							if (value == null) return 'Market Liquidity: $0';
-							return 'Market Liquidity: $' + value.toLocaleString();
+							return `Market Liquidity: $${value.toLocaleString()}`;
 						},
 						afterBody: (context) => {
 							const price = chartData.rawLabels[context[0].dataIndex];
@@ -405,7 +405,7 @@ export const LiquidityDistributionChart = ({
 					ticks: {
 						color: 'rgba(14, 165, 233, 1)',
 						font: { size: 10, family: 'JetBrains Mono' },
-						callback: (v) => '$' + (Number(v) / 1000).toFixed(0) + 'K',
+						callback: (v) => `$${(Number(v) / 1000).toFixed(0)}K`,
 						padding: 8,
 					},
 					title: {
@@ -429,7 +429,7 @@ export const LiquidityDistributionChart = ({
 					ticks: {
 						color: 'rgba(255, 152, 0, 1)',
 						font: { size: 10, family: 'JetBrains Mono' },
-						callback: (v) => '$' + (Number(v) / 1000).toFixed(1) + 'K',
+						callback: (v) => `$${(Number(v) / 1000).toFixed(1)}K`,
 						padding: 8,
 					},
 					title: {

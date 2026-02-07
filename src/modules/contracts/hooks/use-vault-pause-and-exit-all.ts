@@ -3,7 +3,7 @@ import { V4_AGENTIC_VAULT_ABI } from '../constants/v4-agentic-vault-abi';
 import useAppWriteContract from './use-app-write-contract';
 
 const pendingMinutes = 10; // 10 minutes
-export function useVaultExitAll(vaultAddress: string) {
+export function useVaultPauseAndExitAll(vaultAddress: string) {
 	const { mutateAsync, ...result } = useAppWriteContract();
 	return {
 		...result,

@@ -1,58 +1,74 @@
-import { useState, useEffect } from 'react';
-import { useSetAtom, useAtomValue } from 'jotai';
-import type { Vault } from '../types/vault.types';
-import { updateVaultConfigAtom, isLoadingAtom } from '../stores/vault.store';
-import {
-	Sheet,
-	SheetContent,
-	SheetHeader,
-	SheetTitle,
-	SheetDescription,
-	SheetFooter,
-} from '@/modules/common/components/ui/sheet';
+import { Info, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { Alert, AlertDescription } from '@/modules/common/components/ui/alert';
 import { Button } from '@/modules/common/components/ui/button';
 import { Input } from '@/modules/common/components/ui/input';
 import { Label } from '@/modules/common/components/ui/label';
-import { Switch } from '@/modules/common/components/ui/switch';
-import { Separator } from '@/modules/common/components/ui/separator';
 import {
 	RadioGroup,
 	RadioGroupItem,
 } from '@/modules/common/components/ui/radio-group';
-import { Loader2, Info } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
-import { Alert, AlertDescription } from '@/modules/common/components/ui/alert';
-import { getMockPrice } from '../utils/vault-utils';
+import { Separator } from '@/modules/common/components/ui/separator';
+import {
+	Sheet,
+	SheetContent,
+	SheetDescription,
+	SheetHeader,
+	SheetTitle,
+	SheetTrigger,
+} from '@/modules/common/components/ui/sheet';
+import { Switch } from '@/modules/common/components/ui/switch';
+import { useSetMaxPositionsK } from '@/modules/contracts/hooks/use-set-max-position-k';
+import { useSetSwapAllowed } from '@/modules/contracts/hooks/use-set-swap-allowed';
+import { useSetVaultTickRange } from '@/modules/contracts/hooks/use-set-vault-tick-range';
+import { useTokenPrice } from '@/modules/contracts/hooks/use-token-price';
+import type { Vault } from '../types/vault.types';
 
 interface SettingsSheetProps {
 	vault: Vault;
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
+	vaultAddress: string;
+	trigger: React.ReactNode;
 }
 
 type RiskProfile = 'conservative' | 'standard' | 'aggressive' | 'custom';
 
 export const SettingsSheet = ({
 	vault,
-	open,
-	onOpenChange,
+	vaultAddress,
+	trigger,
 }: SettingsSheetProps) => {
-	const updateVaultConfig = useSetAtom(updateVaultConfigAtom);
-	const isLoading = useAtomValue(isLoadingAtom);
-
-	// Local state
+	// Local state - store actual tick values, not prices
 	const [riskProfile, setRiskProfile] = useState<RiskProfile>('custom');
-	const [tickLower, setTickLower] = useState(vault.config.tickLower.toString());
-	const [tickUpper, setTickUpper] = useState(vault.config.tickUpper.toString());
+	const [tickLower, setTickLower] = useState(vault.config.tickLower);
+	const [tickUpper, setTickUpper] = useState(vault.config.tickUpper);
 	const [swapAllowed, setSwapAllowed] = useState(vault.config.swapAllowed);
 	const [maxPositions, setMaxPositions] = useState(vault.config.k.toString());
+
+	const {
+		setVaultTickRange: setVaultTickRangeFn,
+		isPending: isPendingVaultTickRange,
+	} = useSetVaultTickRange({ vaultAddress });
+	const {
+		setSwapAllowed: setSwapAllowedFn,
+		isPending: isPendingSwapAllowed,
+	} = useSetSwapAllowed({ vaultAddress });
+	const {
+		setMaxPositionsK: setMaxPositionsKFn,
+		isPending: isPendingMaxPositionsK,
+	} = useSetMaxPositionsK({ vaultAddress });
+
 	// Local state to remember the last non-zero limit
 	const [lastLimit, setLastLimit] = useState(
 		vault.config.k > 0 ? vault.config.k.toString() : '5',
 	);
 
-	const currentPrice = getMockPrice(vault.poolKey.token0.symbol);
+	const priceInfo = useTokenPrice({
+		id: vault.poolKey.token0.symbol.toLowerCase(),
+	});
+
+	const currentPrice = priceInfo?.data?.price ?? 0;
 
 	const formatPrice = (price: number) => {
 		return new Intl.NumberFormat('en-US', {
@@ -80,56 +96,86 @@ export const SettingsSheet = ({
 	};
 
 	// Reset local state when vault changes or sheet opens
-	useEffect(() => {
-		if (open) {
-			const lower = vault.config.tickLower;
-			const upper = vault.config.tickUpper;
+	function handleReset() {
+		const lower = vault.config.tickLower;
+		const upper = vault.config.tickUpper;
 
-			// Convert ticks to prices for display
-			setTickLower(getPriceFromTick(lower).toFixed(2));
-			setTickUpper(getPriceFromTick(upper).toFixed(2));
+		// Store tick values directly
+		setTickLower(lower);
+		setTickUpper(upper);
 
-			setSwapAllowed(vault.config.swapAllowed);
-			setMaxPositions(vault.config.k.toString());
+		setSwapAllowed(vault.config.swapAllowed);
+		setMaxPositions(vault.config.k.toString());
 
-			// Heuristic to detect profile
-			if (lower === -5000 && upper === 5000) setRiskProfile('conservative');
-			else if (lower === -2000 && upper === 2000) setRiskProfile('standard');
-			else if (lower === -1000 && upper === 1000) setRiskProfile('aggressive');
-			else setRiskProfile('custom');
-		}
-	}, [open, vault, currentPrice]);
+		// Heuristic to detect profile
+		if (lower === -5000 && upper === 5000) setRiskProfile('conservative');
+		else if (lower === -2000 && upper === 2000) setRiskProfile('standard');
+		else if (lower === -1000 && upper === 1000) setRiskProfile('aggressive');
+		else setRiskProfile('custom');
+	}
 
 	const handleProfileChange = (value: RiskProfile) => {
 		setRiskProfile(value);
 
-		// Set ticks based on profile (assuming mock ticks relative to 0)
+		// Set tick values directly based on profile
 		if (value === 'conservative') {
-			setTickLower(getPriceFromTick(-5000).toFixed(2));
-			setTickUpper(getPriceFromTick(5000).toFixed(2));
+			setTickLower(-5000);
+			setTickUpper(5000);
 		} else if (value === 'standard') {
-			setTickLower(getPriceFromTick(-2000).toFixed(2));
-			setTickUpper(getPriceFromTick(2000).toFixed(2));
+			setTickLower(-2000);
+			setTickUpper(2000);
 		} else if (value === 'aggressive') {
-			setTickLower(getPriceFromTick(-1000).toFixed(2));
-			setTickUpper(getPriceFromTick(1000).toFixed(2));
+			setTickLower(-1000);
+			setTickUpper(1000);
 		}
 		// 'custom' keeps current values or lets user edit
 	};
 
-	const handleManualTickChange = (
-		setter: (val: string) => void,
-		val: string,
+	const handleManualPriceChange = (
+		isLower: boolean,
+		priceStr: string,
 	) => {
-		setter(val);
+		const price = Number.parseFloat(priceStr);
+		if (!Number.isNaN(price)) {
+			const tick = getTickFromPrice(price);
+			if (isLower) {
+				setTickLower(tick);
+			} else {
+				setTickUpper(tick);
+			}
+		}
 		if (riskProfile !== 'custom') {
 			setRiskProfile('custom');
 		}
 	};
 
-	const handleSave = async () => {
-		const k = parseInt(maxPositions);
-		if (isNaN(k) || k < 0) {
+	const handleSaveTickRange = async () => {
+		try {
+			await setVaultTickRangeFn(tickLower, tickUpper);
+			toast.success('Price Range Updated', {
+				description: 'New price range will apply to future positions.',
+			});
+		} catch (e) {
+			console.error(e);
+			toast.error('Failed to update price range');
+		}
+	};
+
+	const handleSaveSwapAllowed = async () => {
+		try {
+			await setSwapAllowedFn(swapAllowed);
+			toast.success('Auto-Swap Updated', {
+				description: `Auto-swap is now ${swapAllowed ? 'enabled' : 'disabled'}.`,
+			});
+		} catch (e) {
+			console.error(e);
+			toast.error('Failed to update swap permission');
+		}
+	};
+
+	const handleSaveMaxPositions = async () => {
+		const k = Number.parseInt(maxPositions, 10);
+		if (Number.isNaN(k) || k < 0) {
 			toast.error('Invalid Position Limit', {
 				description: 'Max positions must be a positive number or 0.',
 			});
@@ -137,27 +183,26 @@ export const SettingsSheet = ({
 		}
 
 		try {
-			// Convert price inputs back to ticks
-			const tLower = getTickFromPrice(parseFloat(tickLower) || 0);
-			const tUpper = getTickFromPrice(parseFloat(tickUpper) || 0);
-
-			await updateVaultConfig(vault.id, {
-				tickLower: tLower,
-				tickUpper: tUpper,
-				k,
-				swapAllowed,
+			await setMaxPositionsKFn(BigInt(k));
+			toast.success('Position Limit Updated', {
+				description: `Max positions set to ${k === 0 ? 'unlimited' : k}.`,
 			});
-			toast.success('Strategy Updated', {
-				description: 'New settings will be applied to future rebalances.',
-			});
-			onOpenChange(false);
 		} catch (e) {
-			toast.error('Failed to update settings');
+			console.error(e);
+			toast.error('Failed to update position limit');
 		}
 	};
 
 	return (
-		<Sheet open={open} onOpenChange={onOpenChange}>
+		<Sheet
+			onOpenChange={(open) => {
+				if (!open) {
+					handleReset();
+				}
+				return open;
+			}}
+		>
+			<SheetTrigger asChild>{trigger}</SheetTrigger>
 			<SheetContent className='overflow-y-auto w-full sm:max-w-md'>
 				<SheetHeader>
 					<SheetTitle>Strategy Configuration</SheetTitle>
@@ -166,14 +211,16 @@ export const SettingsSheet = ({
 					</SheetDescription>
 				</SheetHeader>
 
-				<div className='py-6 space-y-6'>
+				<div className='py-6 space-y-8'>
 					{/* Section 1: Allowed Tick Range */}
-					<div className='space-y-3'>
-						<h4 className='text-sm font-medium text-primary uppercase tracking-wider flex items-center gap-2'>
-							Price Range Strategy
-						</h4>
+					<div className='space-y-4 p-4 rounded-lg border border-border-default/50 bg-background/50'>
+						<div className='flex items-center justify-between'>
+							<h4 className='text-sm font-medium text-primary uppercase tracking-wider'>
+								Price Range Strategy
+							</h4>
+						</div>
 
-						<Alert className='bg-primary/5 border-primary/20 mb-4'>
+						<Alert className='bg-primary/5 border-primary/20'>
 							<Info className='h-4 w-4 text-primary' />
 							<AlertDescription className='text-xs text-text-secondary'>
 								Changes to the price range will only affect{' '}
@@ -251,9 +298,9 @@ export const SettingsSheet = ({
 									<Input
 										id='tick-lower'
 										type='number'
-										value={tickLower}
+										value={getPriceFromTick(tickLower).toFixed(2)}
 										onChange={(e) =>
-											handleManualTickChange(setTickLower, e.target.value)
+											handleManualPriceChange(true, e.target.value)
 										}
 										placeholder={`e.g. ${formatPrice(currentPrice * 0.9).replace('$', '')}`}
 										className='bg-background'
@@ -264,9 +311,9 @@ export const SettingsSheet = ({
 									<Input
 										id='tick-upper'
 										type='number'
-										value={tickUpper}
+										value={getPriceFromTick(tickUpper).toFixed(2)}
 										onChange={(e) =>
-											handleManualTickChange(setTickUpper, e.target.value)
+											handleManualPriceChange(false, e.target.value)
 										}
 										placeholder={`e.g. ${formatPrice(currentPrice * 1.1).replace('$', '')}`}
 										className='bg-background'
@@ -274,21 +321,36 @@ export const SettingsSheet = ({
 								</div>
 							</div>
 						</div>
+
+						<Button
+							className='w-full'
+							onClick={handleSaveTickRange}
+							disabled={
+								isPendingVaultTickRange ||
+								(tickLower === vault.config.tickLower &&
+									tickUpper === vault.config.tickUpper)
+							}
+						>
+							{isPendingVaultTickRange ? (
+								<Loader2 className='w-4 h-4 animate-spin' />
+							) : (
+								'Update Price Range'
+							)}
+						</Button>
 					</div>
 
 					<Separator className='bg-border-default/40' />
 
-					{/* Section 2: Strategy Controls */}
-					<div className='space-y-6'>
+					{/* Section 2: Auto-Swap Permission */}
+					<div className='space-y-4 p-4 rounded-lg border border-border-default/50 bg-background/50'>
 						<h4 className='text-sm font-medium text-primary uppercase tracking-wider'>
-							Operational Limits
+							Auto-Swap Permission
 						</h4>
 
-						{/* Swap Allowed */}
-						<div className='flex items-center justify-between p-3 rounded-lg border border-primary/30 bg-primary/5 shadow-[0_0_10px_rgba(255,51,133,0.05)] transition-all duration-200'>
-							<div className='space-y-0.5'>
+						<div className='flex items-center justify-between p-3 rounded-lg border border-primary/30 bg-primary/5'>
+							<div className='space-y-0.5 flex-1'>
 								<Label className='text-sm font-medium'>
-									Auto-Swap Permission
+									Enable Auto-Swap
 								</Label>
 								<p className='text-xs text-text-muted max-w-[250px]'>
 									Allow the Agent to automatically swap tokens to maintain the
@@ -302,7 +364,29 @@ export const SettingsSheet = ({
 							/>
 						</div>
 
-						{/* Max Positions (K) */}
+						<Button
+							className='w-full'
+							onClick={handleSaveSwapAllowed}
+							disabled={
+								isPendingSwapAllowed || swapAllowed === vault.config.swapAllowed
+							}
+						>
+							{isPendingSwapAllowed ? (
+								<Loader2 className='w-4 h-4 animate-spin' />
+							) : (
+								'Update Auto-Swap Setting'
+							)}
+						</Button>
+					</div>
+
+					<Separator className='bg-border-default/40' />
+
+					{/* Section 3: Max Positions */}
+					<div className='space-y-4 p-4 rounded-lg border border-border-default/50 bg-background/50'>
+						<h4 className='text-sm font-medium text-primary uppercase tracking-wider'>
+							Position Limit
+						</h4>
+
 						<div className='space-y-3'>
 							<div className='flex items-center justify-between'>
 								<Label htmlFor='max-positions'>
@@ -357,18 +441,23 @@ export const SettingsSheet = ({
 								Limits the number of active grid orders.
 							</p>
 						</div>
+
+						<Button
+							className='w-full'
+							onClick={handleSaveMaxPositions}
+							disabled={
+								isPendingMaxPositionsK ||
+								Number.parseInt(maxPositions, 10) === vault.config.k
+							}
+						>
+							{isPendingMaxPositionsK ? (
+								<Loader2 className='w-4 h-4 animate-spin' />
+							) : (
+								'Update Position Limit'
+							)}
+						</Button>
 					</div>
 				</div>
-
-				<SheetFooter>
-					<Button className='w-full' onClick={handleSave} disabled={isLoading}>
-						{isLoading ? (
-							<Loader2 className='w-4 h-4 animate-spin' />
-						) : (
-							'Save Configuration'
-						)}
-					</Button>
-				</SheetFooter>
 			</SheetContent>
 		</Sheet>
 	);

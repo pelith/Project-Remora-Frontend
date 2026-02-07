@@ -50,7 +50,7 @@ export function useVaultPositionsBalance({
 	const vaultQuery = useVault({ vaultAddress });
 	const vaultData = vaultQuery.data;
 	const posmAddress = vaultData?.posm as Address | undefined;
-	const positionsLength = vaultData?.positionsLength ?? 0n;
+	const positionsLength = vaultData?.positionsLengthRaw ?? 0n;
 	const positionsCount = Number(positionsLength ?? 0n);
 
 	const vaultCurrency0 = vaultData?.currency0 as Address | undefined;

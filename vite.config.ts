@@ -18,6 +18,10 @@ export default defineConfig({
 		tailwindcss(),
 		jsxLocPlugin(),
 	],
+	server: {
+		port: 3000,
+		allowedHosts: ['paul-devv.ngrok.app'],
+	},
 	resolve: {
 		alias: {
 			'@': fileURLToPath(new URL('./src', import.meta.url)),

@@ -1,19 +1,16 @@
-import type BigNumber from 'bignumber.js';
 import { ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
-import { erc20Abi, parseUnits, zeroAddress } from 'viem';
+import { erc20Abi, zeroAddress } from 'viem';
 import { useSendTransaction } from 'wagmi';
-import { parseToBigNumber } from '@/modules/common/utils/bignumber';
 import { getEtherscanLink, shortenTxId } from '../utils';
 import useAppWriteContract from './use-app-write-contract';
 
 export function useSendTokenToVault(
 	vaultAddress: string,
 	tokenAddress: string,
-	amount: BigNumber.Value,
 ) {
 	const isNative = tokenAddress.toLowerCase() === zeroAddress;
-	const { writeContractAsync, isPending } = useAppWriteContract();
+	const { mutateAsync, isPending } = useAppWriteContract();
 	const { mutateAsync: sendTransaction, isPending: isSendingTransaction } =
 		useSendTransaction({
 			mutation: {
@@ -36,21 +33,18 @@ export function useSendTokenToVault(
 		});
 
 	return {
-		send: async () => {
+		send: async (amountRaw: bigint) => {
 			if (isNative) {
 				await sendTransaction({
 					to: vaultAddress as `0x${string}`,
-					value: parseUnits(parseToBigNumber(amount).toString(), 18),
+					value: amountRaw,
 				});
 			} else {
-				await writeContractAsync({
+				await mutateAsync({
 					address: tokenAddress as `0x${string}`,
 					abi: erc20Abi,
 					functionName: 'transfer',
-					args: [
-						vaultAddress as `0x${string}`,
-						parseUnits(parseToBigNumber(amount).toString(), 18),
-					],
+					args: [vaultAddress as `0x${string}`, amountRaw],
 				});
 			}
 		},

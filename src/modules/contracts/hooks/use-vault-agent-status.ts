@@ -4,7 +4,6 @@ import { V4_AGENTIC_VAULT_ABI } from '../constants/v4-agentic-vault-abi';
 import useAppWriteContract from './use-app-write-contract';
 
 export function useSetAgentPause(vaultAddress: string) {
-	const { mutateAsync, ...result } = useAppWriteContract();
 	const agentStatus = useReadContract({
 		address: vaultAddress as `0x${string}`,
 		abi: V4_AGENTIC_VAULT_ABI,
@@ -14,17 +13,24 @@ export function useSetAgentPause(vaultAddress: string) {
 			enabled: isAddress(vaultAddress),
 		},
 	});
+
+	const { mutateAsync, ...result } = useAppWriteContract();
+
 	return {
 		...result,
 		agentStatus: agentStatus,
 		disabled: agentStatus.isLoading,
-		setAgentPause(args: { vaultAddress: string; desiredStatus: boolean }) {
-			return mutateAsync({
+		async setAgentPause(args: {
+			vaultAddress: string;
+			desiredStatus: boolean;
+		}) {
+			await mutateAsync({
 				address: vaultAddress as `0x${string}`,
 				abi: V4_AGENTIC_VAULT_ABI,
 				functionName: 'setAgentPaused',
 				args: [args.desiredStatus],
 			});
+			agentStatus.refetch();
 		},
 	};
 }

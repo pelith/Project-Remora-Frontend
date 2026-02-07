@@ -1,4 +1,4 @@
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
+import { type UseQueryOptions, useQuery } from '@tanstack/react-query';
 import { usePublicClient } from 'wagmi';
 import {
 	fetchTokenPrice,
@@ -25,8 +25,11 @@ export function useTokenPrice(
 	options?: UseTokenPriceOptions,
 ) {
 	const publicClient = usePublicClient();
-	const { refetchIntervalMs = 30_000, enabled, ...queryOptions } =
-		options ?? {};
+	const {
+		refetchIntervalMs = 30_000,
+		enabled,
+		...queryOptions
+	} = options ?? {};
 	const vsCurrency = request.vsCurrency ?? 'usd';
 	const isEnabled = Boolean(publicClient && request.id) && (enabled ?? true);
 
@@ -36,7 +39,12 @@ export function useTokenPrice(
 			if (!publicClient) {
 				throw new Error('Public client is not ready.');
 			}
-			return fetchTokenPrice(publicClient, { ...request, vsCurrency });
+			const requestId = request.id.toLowerCase();
+			return fetchTokenPrice(publicClient, {
+				...request,
+				id: requestId,
+				vsCurrency,
+			});
 		},
 		refetchInterval: refetchIntervalMs,
 		enabled: isEnabled,
