@@ -90,7 +90,9 @@ export const VaultCard = ({
 						<div className='mb-4'>
 							<div className='text-xs text-text-muted mb-1'>Total Value</div>
 							<div className='text-xl font-bold text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.1)]'>
-								{formatValueToStandardDisplay(totalValueUSD)}
+								{totalValueUSD === '-'
+									? '-'
+									: `$${formatValueToStandardDisplay(totalValueUSD)}`}
 							</div>
 						</div>
 

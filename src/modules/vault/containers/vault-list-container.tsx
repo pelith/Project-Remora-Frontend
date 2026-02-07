@@ -4,11 +4,11 @@ import { Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Container } from '@/modules/common/components/layout/container';
 import { Button } from '@/modules/common/components/ui/button';
-import { useTokenInfoAndBalance } from '@/modules/contracts/hooks/use-token-info-and-balance';
 import {
 	useUserVaultsIds,
 	useVault,
 } from '@/modules/contracts/hooks/use-user-vault';
+import { useVaultAssets } from '@/modules/contracts/hooks/use-vault-assets';
 import { EmptyState } from '../components';
 import { VaultCard } from '../components/vault-card';
 import { vaultsAtom } from '../stores/vault.store';
@@ -18,7 +18,7 @@ export default function VaultListContainer() {
 	const vaults = useAtomValue(vaultsAtom);
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
 	const { address = '' } = useAppKitAccount();
-	const { data, isLoading, refetch } = useUserVaultsIds({ address });
+	const { data, refetch } = useUserVaultsIds({ address });
 
 	const userVaultIds = data ?? [];
 
@@ -61,19 +61,43 @@ export default function VaultListContainer() {
 }
 
 function VaultCardContainer({ vaultAddress }: { vaultAddress: string }) {
-	const { data: vault } = useVault({ vaultAddress });
-	const token0 = useTokenInfoAndBalance(vaultAddress, vault?.currency0 ?? '');
-	const token1 = useTokenInfoAndBalance(vaultAddress, vault?.currency1 ?? '');
+	const { data: vault, isLoading: isVaultLoading } = useVault({
+		vaultAddress,
+	});
+	const vaultAssets = useVaultAssets({ vaultAddress });
+	const isLoading = isVaultLoading || vaultAssets.isLoading;
+
+	// Use vaultAddress as vaultId for navigation
+	// The vault detail page will use this address to fetch vault data
+	if (isLoading) {
+		return (
+			<div className='flex items-center justify-center p-8'>
+				<p className='text-text-muted'>Loading vault...</p>
+			</div>
+		);
+	}
+
+	// Use data from useVaultAssets (which already includes token info from useVaultAvailableBalance)
+	// Each field can be undefined independently, so we handle them separately
+	const token0Symbol = vaultAssets.data?.token0?.symbol ?? '';
+	const token1Symbol = vaultAssets.data?.token1?.symbol ?? '';
+
+	// Format total value - pass numeric value to formatValueToStandardDisplay
+	const totalValueUSD = vaultAssets.data?.totalValueUSD ?? '-';
+
+	// Use total token amounts from vault assets
+	const token0Amount = vaultAssets.data?.token0?.amount ?? '0';
+	const token1Amount = vaultAssets.data?.token1?.amount ?? '0';
 
 	return (
 		<VaultCard
 			vaultId={vaultAddress}
-			token0Symbol={token0?.symbol ?? ''}
-			token1Symbol={token1?.symbol ?? ''}
-			totalValueUSD={'-'}
-			availableToken0={token0?.balance ?? '0'}
-			availableToken1={token1?.balance ?? '0'}
-			agentStatus={vault?.agentPaused ?? 'not-started'}
+			token0Symbol={token0Symbol}
+			token1Symbol={token1Symbol}
+			totalValueUSD={totalValueUSD}
+			availableToken0={token0Amount}
+			availableToken1={token1Amount}
+			agentStatus={vault?.agentPaused ? 'paused' : 'active'}
 			fee={vault?.fee ?? 0}
 		/>
 	);

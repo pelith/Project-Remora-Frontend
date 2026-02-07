@@ -1,5 +1,5 @@
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { useAtomValue } from 'jotai';
 import {
 	ChevronLeft,
 	Download,
@@ -11,6 +11,7 @@ import {
 	Upload,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { isAddress } from 'viem';
 import { cn } from '@/lib/utils';
 import { Container } from '@/modules/common/components/layout/container';
 import { Badge } from '@/modules/common/components/ui/badge';
@@ -23,12 +24,12 @@ import {
 } from '@/modules/common/components/ui/card';
 import { parseToBigNumber } from '@/modules/common/utils/bignumber';
 import formatValueToStandardDisplay from '@/modules/common/utils/formatValueToStandardDisplay';
+import { useVault } from '@/modules/contracts/hooks/use-user-vault';
+import { useVaultAssets } from '@/modules/contracts/hooks/use-vault-assets';
 import {
-	useVaultAvailableBalance,
-	useVaultPositionsBalance,
-} from '@/modules/contracts';
-import { useVault as useVaultOnChain } from '@/modules/contracts/hooks/use-user-vault';
-import { useChainId } from 'wagmi';
+	fetchPositionTokenAmounts,
+	type PositionTokenAmountRequest,
+} from '@/modules/contracts/services/position-token-amount-api';
 import {
 	AgentControlDialog,
 	DepositSheet,
@@ -38,7 +39,7 @@ import {
 	SettingsSheet,
 	WithdrawSheet,
 } from '../components';
-import { getVaultAtom } from '../stores/vault.store';
+import type { Vault } from '../types/vault.types';
 import { formatCurrency, getMockPrice } from '../utils/vault-utils';
 
 interface VaultDetailContainerProps {
@@ -49,22 +50,24 @@ export default function VaultDetailContainer({
 	vaultId,
 }: VaultDetailContainerProps) {
 	const navigate = useNavigate();
-	const getVault = useMemo(() => getVaultAtom(vaultId), [vaultId]);
-	const vault = useAtomValue(getVault);
-	const chainId = useChainId();
-	const onChainVault = useVaultOnChain({
-		vaultAddress: vault?.vaultAddress ?? '',
-	});
-	const availableBalanceData = useVaultAvailableBalance({
-		vaultAddress: vault?.vaultAddress ?? '',
-		currency0: (onChainVault.data?.currency0 ??
-			vault?.poolKey.token0.address) as `0x${string}` | undefined,
-		currency1: (onChainVault.data?.currency1 ??
-			vault?.poolKey.token1.address) as `0x${string}` | undefined,
-		chainId,
-	});
-	const { data: positionsBalanceData } = useVaultPositionsBalance({
-		vaultAddress: vault?.vaultAddress ?? '',
+
+	// vaultId should be a chain address (0x...)
+	const vaultAddress = vaultId;
+	const isVaultAddress = isAddress(vaultAddress);
+
+	// Get vault data from chain (hooks must be called before any conditional returns)
+	const onChainVault = useVault({ vaultAddress });
+	const vaultAssets = useVaultAssets({ vaultAddress });
+
+	// Fetch positions from API
+	const positionAmountsQuery = useQuery({
+		queryKey: ['position-token-amounts', vaultAddress],
+		queryFn: () =>
+			fetchPositionTokenAmounts({
+				vaultAddress,
+			} as PositionTokenAmountRequest),
+		enabled: isVaultAddress,
+		staleTime: 30_000, // 30 seconds
 	});
 
 	const [isDepositOpen, setIsDepositOpen] = useState(false);
@@ -83,36 +86,84 @@ export default function VaultDetailContainer({
 		| undefined
 	>(undefined);
 
-	const availableBalance = useMemo(() => {
-		const token0 = availableBalanceData.currency0?.balance;
-		const token1 = availableBalanceData.currency1?.balance;
-		if (token0 !== undefined || token1 !== undefined) {
-			return {
-				token0: token0 ?? '0',
-				token1: token1 ?? '0',
-			};
-		}
-		return {
-			token0: vault?.availableBalance.token0.toString() ?? '0',
-			token1: vault?.availableBalance.token1.toString() ?? '0',
-		};
-	}, [
-		availableBalanceData.currency0?.balance,
-		availableBalanceData.currency1?.balance,
-		vault?.availableBalance.token0,
-		vault?.availableBalance.token1,
-	]);
-	const inPositions =
-		positionsBalanceData ?? vault?.inPositions ?? { token0: 0, token1: 0 };
+	// Construct vault object from real chain data (must be before conditional returns)
+	const vault = useMemo((): Vault | undefined => {
+		if (!onChainVault.data || !vaultAssets.data) return undefined;
 
-	if (!vault) {
+		return {
+			id: vaultId,
+			vaultAddress,
+			poolKey: {
+				token0: {
+					symbol: vaultAssets.data.token0?.symbol ?? '',
+					name: vaultAssets.data.token0?.symbol ?? '',
+					decimals: vaultAssets.data.token0?.decimals ?? 18,
+					address: onChainVault.data.currency0 ?? '',
+				},
+				token1: {
+					symbol: vaultAssets.data.token1?.symbol ?? '',
+					name: vaultAssets.data.token1?.symbol ?? '',
+					decimals: vaultAssets.data.token1?.decimals ?? 18,
+					address: onChainVault.data.currency1 ?? '',
+				},
+				fee: onChainVault.data.fee ?? 0,
+				id: onChainVault.data.poolId ?? '',
+			},
+			totalValueUSD:
+				Number.parseFloat(vaultAssets.data.totalValueUSD ?? '0') || 0,
+			createdAt: Date.now(),
+			availableBalance: {
+				token0:
+					Number.parseFloat(vaultAssets.data.token0?.idleAmount ?? '0') || 0,
+				token1:
+					Number.parseFloat(vaultAssets.data.token1?.idleAmount ?? '0') || 0,
+			},
+			inPositions: {
+				token0:
+					Number.parseFloat(vaultAssets.data.token0?.positionAmount ?? '0') ||
+					0,
+				token1:
+					Number.parseFloat(vaultAssets.data.token1?.positionAmount ?? '0') ||
+					0,
+			},
+			agentStatus:
+				onChainVault.data.agentPaused === 'paused' ? 'paused' : 'active',
+			config: {
+				tickLower: onChainVault.data.allowedTickLower ?? 0,
+				tickUpper: onChainVault.data.allowedTickUpper ?? 0,
+				k: onChainVault.data.maxPositionsKRaw
+					? Number(onChainVault.data.maxPositionsKRaw)
+					: 0,
+				swapAllowed: onChainVault.data.swapAllowed ?? false,
+			},
+			positions: [],
+		};
+	}, [vaultId, vaultAddress, onChainVault.data, vaultAssets.data]);
+
+	// Check if vault address is valid
+	if (!isVaultAddress) {
 		return (
 			<Container className='py-8'>
 				<div className='text-center py-20'>
 					<h1 className='text-2xl font-bold text-text-primary mb-4'>
-						Vault not found
+						Invalid vault address
 					</h1>
 					<Button onClick={() => navigate({ to: '/' })}>Back to Vaults</Button>
+				</div>
+			</Container>
+		);
+	}
+
+	// Show loading state if data is not ready
+	if (!vault) {
+		return (
+			<Container className='py-8'>
+				<div className='text-center py-20'>
+					<p className='text-text-muted'>
+						{onChainVault.isLoading || vaultAssets.isLoading
+							? 'Loading vault...'
+							: 'Vault data not available'}
+					</p>
 				</div>
 			</Container>
 		);
@@ -125,12 +176,12 @@ export default function VaultDetailContainer({
 
 	const handleFullExitSuccess = () => {
 		// Calculate total expected balance after exit (Available + InPositions)
-		const total0 = parseToBigNumber(availableBalance.token0 ?? '0').plus(
-			inPositions.token0,
-		);
-		const total1 = parseToBigNumber(availableBalance.token1 ?? '0').plus(
-			inPositions.token1,
-		);
+		const total0 = parseToBigNumber(
+			vault.availableBalance.token0.toString(),
+		).plus(vault.inPositions.token0);
+		const total1 = parseToBigNumber(
+			vault.availableBalance.token1.toString(),
+		).plus(vault.inPositions.token1);
 
 		setWithdrawDefaults({
 			token0: total0.toString(),
@@ -168,7 +219,8 @@ export default function VaultDetailContainer({
 
 					<div className='flex items-center gap-3'>
 						<h1 className='text-2xl font-bold flex items-center gap-2 text-text-primary tracking-tight'>
-							{vault.poolKey.token0.symbol} / {vault.poolKey.token1.symbol}
+							{vaultAssets.data?.token0?.symbol ?? ''} /{' '}
+							{vaultAssets.data?.token1?.symbol ?? ''}
 						</h1>
 						<Badge
 							variant='outline'
@@ -186,7 +238,7 @@ export default function VaultDetailContainer({
 						</Badge>
 					</div>
 					<div className='text-[10px] font-mono text-text-muted/60 flex items-center gap-2'>
-						ID: <span className='text-text-muted'>{vault.id}</span>
+						ID: <span className='text-text-muted'>{vaultAddress}</span>
 					</div>
 				</div>
 
@@ -208,38 +260,15 @@ export default function VaultDetailContainer({
 							Total Value
 						</div>
 						<div className='text-lg font-bold text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]'>
-							{formatCurrency(vault.totalValueUSD)}
+							{vaultAssets.isLoading
+								? '-'
+								: formatCurrency(
+										Number(vaultAssets.data?.totalValueUSD ?? '0'),
+									)}
 						</div>
 					</div>
 
 					<div className='h-6 w-px bg-border-default/40 hidden sm:block' />
-
-					<div className='space-y-0.5'>
-						<div className='text-[10px] uppercase tracking-wider text-text-muted font-medium'>
-							Est. APR
-						</div>
-						<div className='text-lg font-bold text-success'>12.4%</div>
-					</div>
-
-					<div className='h-6 w-px bg-border-default/40 hidden sm:block' />
-
-					<div className='space-y-0.5'>
-						<div className='text-[10px] uppercase tracking-wider text-text-muted font-medium'>
-							Fees (24h)
-						</div>
-						<div className='text-lg font-bold text-text-primary'>$245.80</div>
-					</div>
-
-					<div className='h-6 w-px bg-border-default/40 hidden sm:block' />
-
-					<div className='space-y-0.5'>
-						<div className='text-[10px] uppercase tracking-wider text-text-muted font-medium'>
-							Last Rebalance
-						</div>
-						<div className='text-base font-medium text-text-secondary pt-0.5'>
-							2h ago
-						</div>
-					</div>
 				</div>
 			</div>
 
@@ -247,7 +276,10 @@ export default function VaultDetailContainer({
 				{/* Main Content Area - Left Side */}
 				<div className='lg:col-span-8 space-y-4'>
 					<LiquidityDistributionChart vault={vault} />
-					<PositionsTable vault={vault} />
+					<PositionsTable
+						positions={positionAmountsQuery.data?.positions ?? []}
+						vaultAssets={vaultAssets.data}
+					/>
 				</div>
 
 				{/* Sidebar - Right Side */}
@@ -349,18 +381,22 @@ export default function VaultDetailContainer({
 								<div className='space-y-1 bg-surface-elevated/30 p-2 rounded-md border border-border-default/30'>
 									<div className='flex justify-between items-center text-xs'>
 										<span className='font-mono text-text-primary'>
-											{inPositions.token0.toFixed(4)}
+											{formatValueToStandardDisplay(
+												vaultAssets.data?.token0?.positionAmount ?? '0',
+											)}
 										</span>
 										<span className='text-[10px] text-text-muted'>
-											{vault.poolKey.token0.symbol}
+											{vaultAssets.data?.token0?.symbol ?? ''}
 										</span>
 									</div>
 									<div className='flex justify-between items-center text-xs'>
 										<span className='font-mono text-text-primary'>
-											{inPositions.token1.toFixed(2)}
+											{formatValueToStandardDisplay(
+												vaultAssets.data?.token1?.positionAmount ?? '0',
+											)}
 										</span>
 										<span className='text-[10px] text-text-muted'>
-											{vault.poolKey.token1.symbol}
+											{vaultAssets.data?.token1?.symbol ?? ''}
 										</span>
 									</div>
 								</div>
@@ -382,21 +418,21 @@ export default function VaultDetailContainer({
 									<div className='flex justify-between items-center text-xs'>
 										<span className='font-mono text-text-primary'>
 											{formatValueToStandardDisplay(
-												availableBalance.token0 ?? '0',
+												vaultAssets.data?.token0?.idleAmount ?? '0',
 											)}
 										</span>
 										<span className='text-[10px] text-text-muted'>
-											{vault.poolKey.token0.symbol}
+											{vaultAssets.data?.token0?.symbol ?? ''}
 										</span>
 									</div>
 									<div className='flex justify-between items-center text-xs'>
 										<span className='font-mono text-text-primary'>
 											{formatValueToStandardDisplay(
-												availableBalance.token1 ?? '0',
+												vaultAssets.data?.token1?.idleAmount ?? '0',
 											)}
 										</span>
 										<span className='text-[10px] text-text-muted'>
-											{vault.poolKey.token1.symbol}
+											{vaultAssets.data?.token1?.symbol ?? ''}
 										</span>
 									</div>
 								</div>
