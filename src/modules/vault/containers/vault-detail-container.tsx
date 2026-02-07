@@ -8,7 +8,7 @@ import {
 	Trash2,
 	Upload,
 } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { type Address, isAddress, zeroAddress } from 'viem';
 import { cn } from '@/lib/utils';
 import { Container } from '@/modules/common/components/layout/container';
@@ -79,8 +79,6 @@ export default function VaultDetailContainer({
 		enabled: isVaultAddress,
 		staleTime: 30_000, // 30 seconds
 	});
-
-	const [_isSettingsOpen, setIsSettingsOpen] = useState(false);
 
 	// Construct vault object from real chain data (must be before conditional returns)
 	// Rule 4.1: Calculate derived state during rendering - narrow dependencies
@@ -163,10 +161,6 @@ export default function VaultDetailContainer({
 	const handleBackToVaults = useCallback(() => {
 		navigate({ to: '/' });
 	}, [navigate]);
-
-	const _handleOpenSettings = useCallback(() => {
-		setIsSettingsOpen(true);
-	}, []);
 
 	// Check if vault address is valid
 	if (!isVaultAddress) {
