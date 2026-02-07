@@ -1,5 +1,5 @@
-import type { Vault, Position } from '../types/vault.types';
 import type { LiquidityDistributionResponse } from '@/modules/contracts/services/liquidity-distribution-api';
+import type { Position, Vault } from '../types/vault.types';
 import { getMockPrice, tickToPrice } from './vault-utils';
 
 export interface AgentPosition {
@@ -40,7 +40,7 @@ export function calculateSmartRightAxisMax(
 		if (lowerIndex === -1 || upperIndex === -1) return;
 
 		// Find minimum market liquidity in the position range (bottleneck)
-		let minMarketInRange = Infinity;
+		let minMarketInRange = Number.POSITIVE_INFINITY;
 		for (let i = lowerIndex; i <= upperIndex; i++) {
 			if (marketLiquidity[i] < minMarketInRange) {
 				minMarketInRange = marketLiquidity[i];
@@ -127,8 +127,7 @@ function generateMarketLiquidity(
 			const distance = Math.abs(price - peak.center);
 			const normalizedDistance = distance / peak.spread;
 			// Gaussian: exp(-(x/σ)²)
-			const contribution =
-				peak.strength * Math.exp(-Math.pow(normalizedDistance, 2));
+			const contribution = peak.strength * Math.exp(-(normalizedDistance ** 2));
 			totalLiquidity += contribution;
 		});
 
@@ -147,15 +146,27 @@ function generateMarketLiquidity(
 
 /**
  * Convert vault positions to agent positions for chart visualization
+ * Note: This function now receives positions with real tick values (not BPS relative to current price)
+ * We need token decimals to convert ticks to prices properly
  */
 function convertVaultPositionsToAgentPositions(
 	positions: Position[],
-	currentPrice: number,
+	_currentPrice: number,
+	token0Decimals: number,
+	token1Decimals: number,
 ): AgentPosition[] {
 	return positions.map((pos) => {
-		// Convert tick-based positions to absolute prices
-		const priceLower = currentPrice * (1 + pos.tickLower / 10000);
-		const priceUpper = currentPrice * (1 + pos.tickUpper / 10000);
+		// Convert real tick values to absolute prices using tickToPrice
+		const priceLower = tickToPrice(
+			pos.tickLower,
+			token0Decimals,
+			token1Decimals,
+		);
+		const priceUpper = tickToPrice(
+			pos.tickUpper,
+			token0Decimals,
+			token1Decimals,
+		);
 		const lower = Math.min(priceLower, priceUpper);
 		const upper = Math.max(priceLower, priceUpper);
 
@@ -227,10 +238,10 @@ function convertBinsToMarketLiquidity(
 
 		// Find indices in price range that fall within this bin
 		// Use findIndex to get the first price >= minPrice
-		let lowerIndex = priceRange.findIndex((p) => p >= minPrice);
+		const lowerIndex = priceRange.findIndex((p) => p >= minPrice);
 		// Use findIndex to get the first price >= maxPrice, then use previous index
 		let upperIndex = priceRange.findIndex((p) => p >= maxPrice);
-		
+
 		// If upperIndex is -1, use the last index
 		if (upperIndex === -1) {
 			upperIndex = priceRange.length;
@@ -275,12 +286,16 @@ function generatePriceRangeFromBins(
 ): number[] {
 	if (bins.length === 0) {
 		// Fallback: use current price and allowed range
-		const currentPrice = tickToPrice(currentTick, token0Decimals, token1Decimals);
+		const currentPrice = tickToPrice(
+			currentTick,
+			token0Decimals,
+			token1Decimals,
+		);
 		const allowedLower = currentPrice * (1 + tickLower / 10000);
 		const allowedUpper = currentPrice * (1 + tickUpper / 10000);
 		const minPrice = Math.floor(allowedLower * 0.9);
 		const maxPrice = Math.ceil(allowedUpper * 1.1);
-		
+
 		const priceRange: number[] = [];
 		const step = Math.max(1, (maxPrice - minPrice) / 200);
 		for (let price = minPrice; price <= maxPrice; price += step) {
@@ -377,7 +392,7 @@ export function generateLiquidityChartDataFromAPI(
 	);
 
 	// Convert bins to market liquidity array
-	let marketLiquidity = convertBinsToMarketLiquidity(
+	const marketLiquidity = convertBinsToMarketLiquidity(
 		apiResponse.bins,
 		priceRange,
 		token0Decimals,
@@ -388,7 +403,7 @@ export function generateLiquidityChartDataFromAPI(
 	let currentPriceIndex = priceRange.findIndex((p) => p >= currentPrice);
 	if (currentPriceIndex === -1) {
 		// Find the closest price point
-		let minDistance = Infinity;
+		let minDistance = Number.POSITIVE_INFINITY;
 		priceRange.forEach((price, index) => {
 			const distance = Math.abs(price - currentPrice);
 			if (distance < minDistance) {
@@ -407,11 +422,11 @@ export function generateLiquidityChartDataFromAPI(
 		if (marketLiquidity[currentPriceIndex] === 0) {
 			// Use the pool's total liquidity at current tick
 			const totalLiquidity = Number.parseFloat(apiResponse.liquidity);
-			
+
 			// Find the nearest bin with liquidity
 			let nearestLiquidity = 0;
-			let minDistance = Infinity;
-			
+			let minDistance = Number.POSITIVE_INFINITY;
+
 			apiResponse.bins.forEach((bin) => {
 				const binPriceLower = tickToPrice(
 					bin.tickLower,
@@ -425,17 +440,16 @@ export function generateLiquidityChartDataFromAPI(
 				);
 				const binCenter = (binPriceLower + binPriceUpper) / 2;
 				const distance = Math.abs(binCenter - currentPrice);
-				
+
 				if (distance < minDistance) {
 					minDistance = distance;
 					nearestLiquidity = Number.parseFloat(bin.activeLiquidity);
 				}
 			});
-			
+
 			// Use the nearest bin's liquidity or total liquidity, whichever is available
-			marketLiquidity[currentPriceIndex] = nearestLiquidity > 0 
-				? nearestLiquidity 
-				: totalLiquidity;
+			marketLiquidity[currentPriceIndex] =
+				nearestLiquidity > 0 ? nearestLiquidity : totalLiquidity;
 		}
 	}
 
@@ -443,15 +457,16 @@ export function generateLiquidityChartDataFromAPI(
 	const agentPositions = convertVaultPositionsToAgentPositions(
 		vault.positions,
 		currentPrice,
+		token0Decimals,
+		token1Decimals,
 	);
 
 	// Calculate axis maximums
 	// Find the maximum liquidity value from the data
-	const maxLiquidity = marketLiquidity.length > 0 
-		? Math.max(...marketLiquidity) 
-		: 0;
+	const maxLiquidity =
+		marketLiquidity.length > 0 ? Math.max(...marketLiquidity) : 0;
 	const leftYMax = Math.max(maxLiquidity * 1.1, 1000); // Add 10% padding, ensure minimum
-	
+
 	const rightYMax = calculateSmartRightAxisMax(
 		agentPositions,
 		marketLiquidity,
@@ -462,8 +477,15 @@ export function generateLiquidityChartDataFromAPI(
 	// currentPriceIndex was already calculated above, reuse it
 
 	// Calculate allowed price range
+	// IMPORTANT: tickLower and tickUpper are BPS (basis points) relative to current price
+	// NOT absolute Uniswap ticks!
+	// Formula: price = currentPrice * (1 + tick / 10000)
 	const allowedLowerPrice = currentPrice * (1 + vault.config.tickLower / 10000);
 	const allowedUpperPrice = currentPrice * (1 + vault.config.tickUpper / 10000);
+
+	// Ensure lower < upper
+	const minAllowedPrice = Math.min(allowedLowerPrice, allowedUpperPrice);
+	const maxAllowedPrice = Math.max(allowedLowerPrice, allowedUpperPrice);
 
 	const result = {
 		labels: priceRange.map((p) => `$${p.toLocaleString()}`),
@@ -474,10 +496,10 @@ export function generateLiquidityChartDataFromAPI(
 		rightYMax,
 		currentPriceIndex,
 		currentPrice, // Use the actual current price passed in
-		allowedLowerPrice,
-		allowedUpperPrice,
+		allowedLowerPrice: minAllowedPrice,
+		allowedUpperPrice: maxAllowedPrice,
 	};
-	
+
 	return result;
 }
 
@@ -499,9 +521,12 @@ export function generateLiquidityChartData(vault: Vault): LiquidityChartData {
 	const marketLiquidity = generateMarketLiquidity(priceRange, currentPrice);
 
 	// Convert vault positions to agent positions
+	// For mock data, we need to use default decimals (this is fallback function)
 	const agentPositions = convertVaultPositionsToAgentPositions(
 		vault.positions,
 		currentPrice,
+		vault.poolKey.token0.decimals,
+		vault.poolKey.token1.decimals,
 	);
 
 	// Calculate axis maximums

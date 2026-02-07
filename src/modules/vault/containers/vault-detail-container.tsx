@@ -8,8 +8,8 @@ import {
 	Trash2,
 	Upload,
 } from 'lucide-react';
-import { useCallback, useMemo } from 'react';
-import { type Address, isAddress, zeroAddress } from 'viem';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { formatUnits, isAddress } from 'viem';
 import { cn } from '@/lib/utils';
 import { Container } from '@/modules/common/components/layout/container';
 import { Badge } from '@/modules/common/components/ui/badge';
@@ -20,8 +20,10 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/modules/common/components/ui/card';
+import { parseToBigNumber } from '@/modules/common/utils/bignumber';
 import formatValueToStandardDisplay from '@/modules/common/utils/formatValueToStandardDisplay';
-import { usePoolCurrentPrice } from '@/modules/contracts/hooks/use-pool-current-price';
+import { useLiquidityDistribution } from '@/modules/contracts';
+// import { usePoolCurrentPrice } from '@/modules/contracts/hooks/use-pool-current-price';
 import { useVault } from '@/modules/contracts/hooks/use-user-vault';
 import { useVaultAssets } from '@/modules/contracts/hooks/use-vault-assets';
 import {
@@ -37,8 +39,8 @@ import {
 	SettingsSheet,
 	WithdrawSheet,
 } from '../components';
-import type { Vault } from '../types/vault.types';
-import { formatCurrency } from '../utils/vault-utils';
+import type { Position, Vault } from '../types/vault.types';
+import { tickToPrice } from '../utils/vault-utils';
 
 interface VaultDetailContainerProps {
 	vaultId: string;
@@ -80,10 +82,50 @@ export default function VaultDetailContainer({
 		staleTime: 30_000, // 30 seconds
 	});
 
+	// Convert API positions to vault.types Position format
+	const convertedPositions = useMemo((): Position[] => {
+		if (!positionAmountsQuery.data?.positions || !vaultAssets.data) {
+			return [];
+		}
+
+		const token0Decimals = vaultAssets.data.token0?.decimals ?? 18;
+		const token1Decimals = vaultAssets.data.token1?.decimals ?? 6;
+		const token0Price = vaultAssets.data.token0?.price ?? 0;
+		const token1Price = vaultAssets.data.token1?.price ?? 0;
+
+		return positionAmountsQuery.data.positions.map((pos) => {
+			// Convert raw amounts to formatted numbers
+			const amount0 = parseToBigNumber(
+				pos.amount0 ? formatUnits(BigInt(pos.amount0), token0Decimals) : '0',
+			);
+			const amount1 = parseToBigNumber(
+				pos.amount1 ? formatUnits(BigInt(pos.amount1), token1Decimals) : '0',
+			);
+
+			// Calculate liquidity USD
+			const liquidityUSD = amount0
+				.multipliedBy(token0Price)
+				.plus(amount1.multipliedBy(token1Price))
+				.toNumber();
+
+			return {
+				id: pos.tokenId,
+				tickLower: pos.tickLower,
+				tickUpper: pos.tickUpper,
+				liquidityUSD,
+				inRange: false, // Will be calculated later when currentPrice is available
+			};
+		});
+	}, [positionAmountsQuery.data?.positions, vaultAssets.data]);
+
 	// Construct vault object from real chain data (must be before conditional returns)
 	// Rule 4.1: Calculate derived state during rendering - narrow dependencies
 	const vault = useMemo((): Vault | undefined => {
 		if (!onChainVault.data || !vaultAssets.data) return undefined;
+
+		// Calculate positions with inRange status if currentPrice is available
+		// Note: currentPrice will be calculated later, so we'll update positions in a separate useMemo
+		const positions = convertedPositions;
 
 		return {
 			id: vaultId,
@@ -98,7 +140,7 @@ export default function VaultDetailContainer({
 				token1: {
 					symbol: vaultAssets.data.token1?.symbol ?? '',
 					name: vaultAssets.data.token1?.symbol ?? '',
-					decimals: vaultAssets.data.token1?.decimals ?? 18,
+					decimals: vaultAssets.data.token1?.decimals ?? 6, // USDC/USDT typically have 6 decimals
 					address: onChainVault.data.currency1 ?? '',
 				},
 				fee: onChainVault.data.fee ?? 0,
@@ -131,29 +173,135 @@ export default function VaultDetailContainer({
 					: 0,
 				swapAllowed: onChainVault.data.swapAllowed ?? false,
 			},
-			positions: [],
+			positions,
 		};
-	}, [vaultId, vaultAddress, onChainVault.data, vaultAssets.data]);
+	}, [
+		vaultId,
+		vaultAddress,
+		onChainVault.data,
+		vaultAssets.data,
+		convertedPositions,
+	]);
 
-	// Rule 4.1: Derive currentPrice during rendering instead of computing inline
-	const { data: poolCurrentPriceInfo } = usePoolCurrentPrice({
-		poolKey: vault?.poolKey
-			? {
-					currency0: vault?.poolKey.token0.address as Address,
-					currency1: vault?.poolKey.token1.address as Address,
-					fee: vault?.poolKey.fee ?? 0,
-					tickSpacing: 60,
-					hooks: zeroAddress,
-				}
-			: undefined,
-		token0Decimals: vault?.poolKey.token0.decimals ?? 18,
-		token1Decimals: vault?.poolKey.token1.decimals ?? 18,
-		chainId: 1,
+	const [liquidityDistributionData, setLiquidityDistributionData] = useState<{
+		currentPrice: number;
+		apiResponse: import('@/modules/contracts/services/liquidity-distribution-api').LiquidityDistributionResponse;
+	} | null>(null);
+
+	// Call liquidity distribution API
+	const { mutate: fetchLiquidityDistribution } = useLiquidityDistribution({
+		onSuccess: (data) => {
+			// Get decimals from vaultAssets if available, otherwise use defaults
+			const token0Decimals = vaultAssets.data?.token0?.decimals ?? 18;
+			const token1Decimals = vaultAssets.data?.token1?.decimals ?? 6;
+
+			const currentPrice = tickToPrice(
+				data.currentTick,
+				token0Decimals,
+				token1Decimals,
+			);
+			setLiquidityDistributionData({
+				currentPrice,
+				apiResponse: data,
+			});
+		},
+		onError: () => {
+			// Error handling (silent fail for now)
+		},
 	});
 
-	const currentPrice = poolCurrentPriceInfo?.rawPrice;
+	// Call liquidity distribution API when vault data is ready
+	useEffect(() => {
+		if (
+			vault?.poolKey?.token0?.address &&
+			vault?.poolKey?.token1?.address &&
+			onChainVault.data?.tickSpacing !== undefined
+		) {
+			fetchLiquidityDistribution({
+				poolKey: {
+					currency0: vault.poolKey.token0.address,
+					currency1: vault.poolKey.token1.address,
+					fee: vault.poolKey.fee,
+					tickSpacing: onChainVault.data.tickSpacing ?? 60,
+					hooks: '0x0000000000000000000000000000000000000000',
+				},
+				binSizeTicks: 100,
+				tickRange: 10000,
+			});
+		}
+	}, [
+		vault?.poolKey?.token0?.address,
+		vault?.poolKey?.token1?.address,
+		vault?.poolKey?.fee,
+		onChainVault.data?.tickSpacing,
+		fetchLiquidityDistribution,
+	]);
 
-	console.log('currentPrice', poolCurrentPriceInfo);
+	const currentPrice = liquidityDistributionData?.currentPrice ?? undefined;
+
+	// Debug: Log vault info for Allowed Range
+	useEffect(() => {
+		if (onChainVault.data && vault) {
+			console.log('🔍 Vault Info - Allowed Range Data:', {
+				source: 'onChainVault.data',
+				onChainVaultData: {
+					allowedTickLower: onChainVault.data.allowedTickLower,
+					allowedTickUpper: onChainVault.data.allowedTickUpper,
+					agentPaused: onChainVault.data.agentPaused,
+					maxPositionsKRaw: onChainVault.data.maxPositionsKRaw,
+					swapAllowed: onChainVault.data.swapAllowed,
+				},
+				vaultConfig: {
+					tickLower: vault.config.tickLower,
+					tickUpper: vault.config.tickUpper,
+					k: vault.config.k,
+					swapAllowed: vault.config.swapAllowed,
+				},
+				currentPrice,
+				note: 'tickLower and tickUpper are BPS (basis points) relative to current price',
+			});
+		}
+	}, [onChainVault.data, vault, currentPrice]);
+
+	// Update vault positions with inRange status when currentPrice is available
+	const vaultWithUpdatedPositions = useMemo((): Vault | undefined => {
+		if (!vault || !currentPrice || !vaultAssets.data) {
+			return vault;
+		}
+
+		const token0Decimals = vaultAssets.data.token0?.decimals ?? 18;
+		const token1Decimals = vaultAssets.data.token1?.decimals ?? 6;
+
+		const updatedPositions = vault.positions.map((pos) => {
+			const priceLower = tickToPrice(
+				pos.tickLower,
+				token0Decimals,
+				token1Decimals,
+			);
+			const priceUpper = tickToPrice(
+				pos.tickUpper,
+				token0Decimals,
+				token1Decimals,
+			);
+			const inRange =
+				currentPrice >= Math.min(priceLower, priceUpper) &&
+				currentPrice <= Math.max(priceLower, priceUpper);
+
+			return {
+				...pos,
+				inRange,
+			};
+		});
+
+		return {
+			...vault,
+			positions: updatedPositions,
+		};
+	}, [vault, currentPrice, vaultAssets.data]);
+
+	// Use updated vault if available, otherwise use original vault
+	// Note: finalVault will be undefined if vault is undefined
+	const finalVault = vaultWithUpdatedPositions ?? vault;
 
 	// Rule 4.7: Put interaction logic in event handlers with useCallback
 
@@ -177,7 +325,7 @@ export default function VaultDetailContainer({
 	}
 
 	// Show loading state if data is not ready
-	if (!vault) {
+	if (!vault || !finalVault) {
 		return (
 			<Container className='py-8'>
 				<div className='text-center py-20'>
@@ -214,15 +362,15 @@ export default function VaultDetailContainer({
 							variant='outline'
 							className='font-mono text-[10px] font-normal text-text-muted border-border-default bg-surface-elevated/50'
 						>
-							{(vault.poolKey.fee / 10000).toFixed(2)}%
+							{(finalVault.poolKey.fee / 10000).toFixed(2)}%
 						</Badge>
 						<Badge
 							className={cn(
 								'capitalize px-2 py-0.5 text-[10px] tracking-wide font-medium',
-								getAgentStatusColor(vault.agentStatus),
+								getAgentStatusColor(finalVault.agentStatus),
 							)}
 						>
-							{vault.agentStatus.replace('-', ' ')}
+							{finalVault.agentStatus.replace('-', ' ')}
 						</Badge>
 					</div>
 					<div className='text-[10px] font-mono text-text-muted/60 flex items-center gap-2'>
@@ -250,7 +398,7 @@ export default function VaultDetailContainer({
 						<div className='text-lg font-bold text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]'>
 							{vaultAssets.isLoading
 								? '-'
-								: formatCurrency(
+								: formatValueToStandardDisplay(
 										Number(vaultAssets.data?.totalValueUSD ?? '0'),
 									)}
 						</div>
@@ -263,10 +411,28 @@ export default function VaultDetailContainer({
 			<div className='grid grid-cols-1 lg:grid-cols-12 gap-4'>
 				{/* Main Content Area - Left Side */}
 				<div className='lg:col-span-8 space-y-4'>
-					<LiquidityDistributionChart vault={vault} />
+					{finalVault ? (
+						<LiquidityDistributionChart
+							vault={finalVault}
+							liquidityDistributionData={
+								liquidityDistributionData?.apiResponse ?? null
+							}
+							currentPrice={vaultAssets.data?.token0?.price ?? 0}
+						/>
+					) : (
+						<Card className='border-border-default/50 bg-surface-card overflow-hidden'>
+							<div className='p-4'>
+								<div className='relative h-[500px] flex items-center justify-center'>
+									<p className='text-text-muted'>Loading chart...</p>
+								</div>
+							</div>
+						</Card>
+					)}
+
 					<PositionsTable
 						positions={positionAmountsQuery.data?.positions ?? []}
 						vaultAssets={vaultAssets.data}
+						currentPrice={currentPrice}
 					/>
 				</div>
 
@@ -280,19 +446,19 @@ export default function VaultDetailContainer({
 
 							<AgentControlDialog
 								vaultAddress={vaultAddress}
-								vaultConfigK={vault.config.k}
-								vaultConfigTickLower={vault.config.tickLower}
-								vaultConfigTickUpper={vault.config.tickUpper}
-								vaultSwapAllowed={vault.config.swapAllowed}
-								vaultPoolKeyToken0Symbol={vault.poolKey.token0.symbol}
-								vaultPoolKeyToken1Symbol={vault.poolKey.token1.symbol}
+								vaultConfigK={finalVault.config.k}
+								vaultConfigTickLower={finalVault.config.tickLower}
+								vaultConfigTickUpper={finalVault.config.tickUpper}
+								vaultSwapAllowed={finalVault.config.swapAllowed}
+								vaultPoolKeyToken0Symbol={finalVault.poolKey.token0.symbol}
+								vaultPoolKeyToken1Symbol={finalVault.poolKey.token1.symbol}
 							/>
 
 							<div className='grid grid-cols-2 gap-2'>
 								<DepositSheet
 									vaultAddress={vaultAddress}
-									token0Address={vault.poolKey.token0.address ?? ''}
-									token1Address={vault.poolKey.token1.address ?? ''}
+									token0Address={finalVault.poolKey.token0.address ?? ''}
+									token1Address={finalVault.poolKey.token1.address ?? ''}
 									trigger={
 										<Button
 											variant='secondary'
@@ -321,7 +487,7 @@ export default function VaultDetailContainer({
 							</div>
 
 							<SettingsSheet
-								vault={vault}
+								vault={finalVault}
 								vaultAddress={vaultAddress}
 								trigger={
 									<Button
