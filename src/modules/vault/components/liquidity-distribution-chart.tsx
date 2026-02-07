@@ -13,18 +13,21 @@ import { TrendingUp } from 'lucide-react';
 import { useMemo } from 'react';
 import { Bar } from 'react-chartjs-2';
 import { Card } from '@/modules/common/components/ui/card';
+import type { LiquidityDistributionResponse } from '@/modules/contracts/services/liquidity-distribution-api';
 import type { Vault } from '../types/vault.types';
-import { generateLiquidityChartData } from '../utils/liquidity-chart-utils';
+import { generateLiquidityChartDataFromAPI } from '../utils/liquidity-chart-utils';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
 interface LiquidityDistributionChartProps {
 	vault: Vault;
+	liquidityDistributionData?: LiquidityDistributionResponse | null;
+	currentPrice?: number;
 }
 
 // Custom plugin to draw agent positions and overlays
 function createOverlayPlugin(
-	chartData: ReturnType<typeof generateLiquidityChartData>,
+	chartData: ReturnType<typeof generateLiquidityChartDataFromAPI>,
 ): Plugin<'bar'> {
 	return {
 		id: 'agentPositionsAndOverlays',
@@ -37,7 +40,7 @@ function createOverlayPlugin(
 			const MIN_HEIGHT_PX = 20;
 
 			// Draw Agent Position Boxes
-			chartData.agentPositions.forEach((position, idx) => {
+			chartData.agentPositions.forEach((position, _idx) => {
 				const lowerIndex = chartData.rawLabels.findIndex(
 					(p) => p >= position.tickLower,
 				);
@@ -46,14 +49,6 @@ function createOverlayPlugin(
 				);
 
 				if (lowerIndex === -1 || upperIndex === -1) {
-					console.warn(`Position ${idx}: Could not find indices`, {
-						tickLower: position.tickLower,
-						tickUpper: position.tickUpper,
-						priceRange: [
-							chartData.rawLabels[0],
-							chartData.rawLabels[chartData.rawLabels.length - 1],
-						],
-					});
 					return;
 				}
 
@@ -63,11 +58,6 @@ function createOverlayPlugin(
 				const width = rightX - leftX;
 
 				if (width <= 0) {
-					console.warn(`Position ${idx}: Invalid width`, {
-						leftX,
-						rightX,
-						width,
-					});
 					return;
 				}
 
@@ -117,33 +107,7 @@ function createOverlayPlugin(
 
 				// Ensure height is valid and visible
 				if (finalHeight <= 0 || !Number.isFinite(finalHeight)) {
-					console.warn(`Position ${idx}: Invalid height, using minimum`, {
-						calculatedHeight,
-						minMarketHeightInRange,
-						liquidity: position.liquidity,
-						rightYMax: chartData.rightYMax,
-						effectiveMax,
-						heightRatio,
-					});
 					finalHeight = MIN_HEIGHT_PX; // Fallback to minimum
-				}
-
-				// Debug log for first position
-				if (idx === 0) {
-					console.log('Position rendering debug:', {
-						position: position,
-						lowerIndex,
-						upperIndex,
-						leftX,
-						rightX,
-						width,
-						chartHeight,
-						calculatedHeight,
-						finalHeight,
-						heightRatio,
-						rightYMax: chartData.rightYMax,
-						effectiveMax,
-					});
 				}
 
 				const topY = yAxisRight.bottom - finalHeight;
@@ -229,7 +193,26 @@ function createOverlayPlugin(
 
 			// Draw Current Price Line
 			const currentX = xAxis.getPixelForValue(chartData.currentPriceIndex);
-			const currentPrice = chartData.rawLabels[chartData.currentPriceIndex];
+			const currentPrice = chartData.currentPrice; // Use actual current price from data
+
+			console.log('🔍 Drawing current price line:', {
+				currentPrice,
+				currentPriceIndex: chartData.currentPriceIndex,
+				priceAtIndex: chartData.rawLabels[chartData.currentPriceIndex],
+				currentX,
+				fullChartData: {
+					hasCurrentPrice: 'currentPrice' in chartData,
+					currentPriceValue: chartData.currentPrice,
+					allKeys: Object.keys(chartData),
+				},
+			});
+
+			// Ensure currentPrice is valid
+			if (!currentPrice || currentPrice === 0) {
+				console.error('❌ currentPrice is 0 or invalid:', currentPrice);
+				return; // Don't draw if price is invalid
+			}
+
 			const inRange = chartData.agentPositions.some(
 				(pos) => currentPrice >= pos.tickLower && currentPrice <= pos.tickUpper,
 			);
@@ -266,26 +249,41 @@ function createOverlayPlugin(
 
 export const LiquidityDistributionChart = ({
 	vault,
+	liquidityDistributionData,
+	currentPrice,
 }: LiquidityDistributionChartProps) => {
 	const chartData = useMemo(() => {
-		const data = generateLiquidityChartData(vault);
-		// Debug: Log positions data
-		if (data.agentPositions.length === 0) {
-			console.log('No agent positions - chart will show empty state');
-		} else {
-			console.log('Agent positions for chart:', data.agentPositions);
+		// 只使用从父层传过来的 currentPrice 和 API 数据
+		if (
+			!liquidityDistributionData ||
+			currentPrice === undefined ||
+			currentPrice === null ||
+			typeof currentPrice !== 'number' ||
+			Number.isNaN(currentPrice) ||
+			currentPrice <= 0
+		) {
+			return null;
 		}
-		return data;
-	}, [vault, vault.positions.length, vault.agentStatus]);
 
-	const overlayPlugin = useMemo(
-		() => createOverlayPlugin(chartData),
+		return generateLiquidityChartDataFromAPI(
+			liquidityDistributionData,
+			vault,
+			currentPrice,
+		);
+	}, [
+		vault,
+		vault.positions.length,
+		vault.agentStatus,
+		liquidityDistributionData,
+		currentPrice,
+	]);
+
+	const _overlayPlugin = useMemo(
+		() => (chartData ? createOverlayPlugin(chartData) : null),
 		[chartData],
 	);
 
 	// Force chart re-render when vault positions or agent status changes
-	// Using key prop to ensure chart updates when data changes
-	// Include positions count, agent status, and a hash of position IDs
 	const chartKey = useMemo(() => {
 		const positionsHash =
 			vault.positions.length > 0
@@ -297,11 +295,11 @@ export const LiquidityDistributionChart = ({
 	// Prepare Chart.js data
 	const chartJsData: ChartData<'bar'> = useMemo(
 		() => ({
-			labels: chartData.labels,
+			labels: chartData?.labels ?? [],
 			datasets: [
 				{
-					label: 'Market Liquidity',
-					data: chartData.marketLiquidity,
+					label: 'Active Liquidity',
+					data: chartData?.marketLiquidity ?? [],
 					backgroundColor: 'rgba(14, 165, 233, 0.6)',
 					borderWidth: 0,
 					barPercentage: 1.0,
@@ -310,6 +308,152 @@ export const LiquidityDistributionChart = ({
 				},
 			],
 		}),
+		[chartData],
+	);
+
+	// Chart options
+	const _chartOptions: ChartOptions<'bar'> = useMemo(
+		() => ({
+			responsive: true,
+			maintainAspectRatio: false,
+			layout: {
+				padding: {
+					top: 40,
+				},
+			},
+			interaction: {
+				mode: 'index',
+				intersect: false,
+			},
+			plugins: {
+				legend: { display: false },
+				tooltip: {
+					backgroundColor: 'hsl(0 0% 10%)',
+					titleColor: 'hsl(0 0% 95%)',
+					bodyColor: 'hsl(0 0% 70%)',
+					borderColor: 'rgba(255, 152, 0, 0.4)',
+					borderWidth: 1,
+					padding: 12,
+					callbacks: {
+						title: (context) => {
+							return `Price: ${context[0].label}`;
+						},
+						label: (context) => {
+							const value = context.parsed.y;
+							if (value == null) return 'Active Liquidity: 0';
+							const formattedValue =
+								value >= 1e18
+									? `${(value / 1e18).toFixed(2)}e18`
+									: value >= 1e15
+										? `${(value / 1e15).toFixed(2)}e15`
+										: value >= 1e12
+											? `${(value / 1e12).toFixed(2)}e12`
+											: value.toLocaleString();
+							return `Active Liquidity: ${formattedValue}`;
+						},
+						afterBody: (context) => {
+							if (!chartData) return [];
+							const price = chartData.rawLabels[context[0].dataIndex];
+							const position = chartData.agentPositions.find(
+								(pos) => price >= pos.tickLower && price <= pos.tickUpper,
+							);
+
+							if (position) {
+								const posIndex = chartData.agentPositions.indexOf(position) + 1;
+								const _maxAgentLiquidity = Math.max(
+									...chartData.agentPositions.map((p) => p.liquidity),
+								);
+								const rightYMax = chartData.rightYMax;
+								const percentage =
+									rightYMax > 0 ? (position.liquidity / rightYMax) * 100 : 0;
+								return [
+									'',
+									`Position #${posIndex}:`,
+									`  Liquidity: $${position.liquidity.toLocaleString()}`,
+									`  Percentage: ${percentage.toFixed(1)}%`,
+								];
+							}
+							return [];
+						},
+					},
+				},
+			},
+			scales: {
+				x: {
+					grid: { display: false },
+					ticks: {
+						maxRotation: 45,
+						color: 'hsl(0 0% 50%)',
+						font: { size: 10, family: 'JetBrains Mono' },
+						maxTicksLimit: 12,
+					},
+					title: {
+						display: true,
+						text: `Price Range (${vault.poolKey.token0.symbol}/${vault.poolKey.token1.symbol})`,
+						color: 'hsl(0 0% 70%)',
+						font: { size: 12, weight: 600 },
+					},
+				},
+				yLeft: {
+					type: 'linear',
+					position: 'left',
+					min: 0,
+					max: chartData?.leftYMax ?? 1000,
+					grid: { color: 'rgba(14, 165, 233, 0.1)' },
+					ticks: {
+						color: 'rgba(14, 165, 233, 1)',
+						font: { size: 10, family: 'JetBrains Mono' },
+						callback: (v) => {
+							const value = Number(v);
+							if (value === 0) return '0';
+							if (value >= 1e18) return `${(value / 1e18).toFixed(2)}e18`;
+							if (value >= 1e15) return `${(value / 1e15).toFixed(2)}e15`;
+							if (value >= 1e12) return `${(value / 1e12).toFixed(2)}e12`;
+							if (value >= 1e9) return `${(value / 1e9).toFixed(2)}e9`;
+							if (value >= 1e6) return `${(value / 1e6).toFixed(2)}e6`;
+							return value.toLocaleString();
+						},
+						padding: 8,
+					},
+					title: {
+						display: true,
+						text: 'Active Liquidity',
+						color: 'rgba(14, 165, 233, 1)',
+						font: { size: 12, weight: 600 },
+					},
+				},
+				yRight: {
+					type: 'linear',
+					position: 'right',
+					min: 0,
+					max: chartData?.rightYMax ?? 1000,
+					grid: { display: false },
+					ticks: {
+						color: 'rgba(255, 152, 0, 1)',
+						font: { size: 10, family: 'JetBrains Mono' },
+						callback: (v) => {
+							const value = Number(v);
+							if (value === 0) return '$0';
+							if (value >= 1e6) return `$${(value / 1e6).toFixed(1)}M`;
+							if (value >= 1e3) return `$${(value / 1e3).toFixed(1)}K`;
+							return `$${value.toLocaleString()}`;
+						},
+						padding: 8,
+					},
+					title: {
+						display: true,
+						text: 'Agent Positions',
+						color: 'rgba(255, 152, 0, 1)',
+						font: { size: 12, weight: 600 },
+					},
+				},
+			},
+		}),
+		[chartData, vault.poolKey.token0.symbol, vault.poolKey.token1.symbol],
+	);
+
+	const overlayPlugin = useMemo(
+		() => (chartData ? createOverlayPlugin(chartData) : null),
 		[chartData],
 	);
 
@@ -342,10 +486,19 @@ export const LiquidityDistributionChart = ({
 						},
 						label: (context) => {
 							const value = context.parsed.y;
-							if (value == null) return 'Market Liquidity: $0';
-							return `Market Liquidity: $${value.toLocaleString()}`;
+							if (value == null) return 'Active Liquidity: 0';
+							const formattedValue =
+								value >= 1e18
+									? `${(value / 1e18).toFixed(2)}e18`
+									: value >= 1e15
+										? `${(value / 1e15).toFixed(2)}e15`
+										: value >= 1e12
+											? `${(value / 1e12).toFixed(2)}e12`
+											: value.toLocaleString();
+							return `Active Liquidity: ${formattedValue}`;
 						},
 						afterBody: (context) => {
+							if (!chartData) return [];
 							const price = chartData.rawLabels[context[0].dataIndex];
 							const position = chartData.agentPositions.find(
 								(pos) => price >= pos.tickLower && price <= pos.tickUpper,
@@ -401,16 +554,29 @@ export const LiquidityDistributionChart = ({
 				yLeft: {
 					type: 'linear',
 					position: 'left',
+					min: 0,
+					max: chartData?.leftYMax ?? 1000,
 					grid: { color: 'rgba(14, 165, 233, 0.1)' },
 					ticks: {
 						color: 'rgba(14, 165, 233, 1)',
 						font: { size: 10, family: 'JetBrains Mono' },
-						callback: (v) => `$${(Number(v) / 1000).toFixed(0)}K`,
+						// TODO: check this callback looks good or not
+						// callback: (v) => `$${(Number(v) / 1000).toFixed(0)}K`,
+						callback: (v) => {
+							const value = Number(v);
+							if (value === 0) return '0';
+							if (value >= 1e18) return `${(value / 1e18).toFixed(2)}e18`;
+							if (value >= 1e15) return `${(value / 1e15).toFixed(2)}e15`;
+							if (value >= 1e12) return `${(value / 1e12).toFixed(2)}e12`;
+							if (value >= 1e9) return `${(value / 1e9).toFixed(2)}e9`;
+							if (value >= 1e6) return `${(value / 1e6).toFixed(2)}e6`;
+							return value.toLocaleString();
+						},
 						padding: 8,
 					},
 					title: {
 						display: true,
-						text: 'Market Liquidity',
+						text: 'Active Liquidity',
 						color: 'rgba(14, 165, 233, 1)',
 						font: { size: 12, weight: 600 },
 					},
@@ -420,16 +586,28 @@ export const LiquidityDistributionChart = ({
 					position: 'right',
 					min: 0,
 					// Use max position liquidity * 1.2 for better visibility
-					max:
-						chartData.agentPositions.length > 0
+					max: chartData
+						? chartData.agentPositions.length > 0
 							? Math.max(...chartData.agentPositions.map((p) => p.liquidity)) *
 								1.2
-							: chartData.rightYMax,
+							: chartData.rightYMax
+						: 1000,
 					grid: { drawOnChartArea: false },
 					ticks: {
 						color: 'rgba(255, 152, 0, 1)',
 						font: { size: 10, family: 'JetBrains Mono' },
-						callback: (v) => `$${(Number(v) / 1000).toFixed(1)}K`,
+						// TODO: check this callback looks good or not
+						// callback: (v) => `$${(Number(v) / 1000).toFixed(1)}K`,
+						callback: (v) => {
+							const value = Number(v);
+							if (value === 0) return '0';
+							if (value >= 1e18) return `${(value / 1e18).toFixed(2)}e18`;
+							if (value >= 1e15) return `${(value / 1e15).toFixed(2)}e15`;
+							if (value >= 1e12) return `${(value / 1e12).toFixed(2)}e12`;
+							if (value >= 1e9) return `${(value / 1e9).toFixed(2)}e9`;
+							if (value >= 1e6) return `${(value / 1e6).toFixed(2)}e6`;
+							return value.toLocaleString();
+						},
 						padding: 8,
 					},
 					title: {
@@ -467,12 +645,18 @@ export const LiquidityDistributionChart = ({
 			<Card className='border-border-default/50 bg-surface-card overflow-hidden'>
 				<div className='p-4'>
 					<div className='relative h-[500px]'>
-						<Bar
-							data={chartJsData}
-							options={chartOptions}
-							plugins={[overlayPlugin]}
-							key={chartKey}
-						/>
+						{chartData && overlayPlugin ? (
+							<Bar
+								data={chartJsData}
+								options={chartOptions}
+								plugins={[overlayPlugin]}
+								key={chartKey}
+							/>
+						) : (
+							<div className='flex items-center justify-center h-full text-text-secondary'>
+								Loading chart data...
+							</div>
+						)}
 					</div>
 
 					{/* Legend */}
@@ -482,7 +666,7 @@ export const LiquidityDistributionChart = ({
 								className='w-5 h-3 rounded'
 								style={{ background: 'rgba(14, 165, 233, 0.6)' }}
 							/>
-							<span>Market Liquidity (Left Axis)</span>
+							<span>Active Liquidity (Left Axis)</span>
 						</div>
 						<div className='flex items-center gap-2 text-text-secondary'>
 							<div

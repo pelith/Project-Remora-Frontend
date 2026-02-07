@@ -19,16 +19,14 @@ export interface LiquidityDistributionRequest {
 
 /**
  * Response type for liquidity distribution API
- * Note: Update this type based on the actual API response structure
  */
 export interface LiquidityDistributionResponse {
-	// TODO: Define the actual response structure based on API documentation
-	// Example structure (update as needed):
 	currentTick: number;
 	sqrtPriceX96: string;
+	liquidity: `${number}`;
 	initializedTicks: {
 		tick: number;
-		liquidityGross: `${number}`;
+		liquidityGross?: `${number}`;
 		liquidityNet: `${number}`;
 	}[];
 	bins: {
