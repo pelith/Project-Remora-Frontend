@@ -1,2 +1,3 @@
-export const VAULT_FACTORY_ADDRESS =
-	'0xfEFF976d20c538f2c8C89dF6f075Be57bc4A8F7f';
+import { env } from '@/env';
+
+export const VAULT_FACTORY_ADDRESS = env.VITE_VAULT_ADDRESS as `0x${string}`;

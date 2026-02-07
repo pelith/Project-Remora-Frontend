@@ -20,6 +20,7 @@ import { useTokenPrice } from '@/modules/contracts/hooks/use-token-price';
 import { useCreateVault } from '@/modules/contracts/hooks/use-user-vault';
 import type { CreateVaultFormData, Pool, Token } from '../types/vault.types';
 import { priceToTick } from '../utils/vault-utils';
+import { env } from '@/env';
 
 type BalanceInfo = {
 	display?: string;
@@ -278,7 +279,7 @@ export function CreateVaultProvider({
 					hooks: zeroAddress,
 				},
 				// should update to bot agent.
-				agent: address as `0x${string}`,
+				agent: env.VITE_AGENT_ADDRESS as `0x${string}`,
 				allowedTickLower: tickLower,
 				allowedTickUpper: tickUpper,
 				swapAllowed: finalData.swapAllowed,
