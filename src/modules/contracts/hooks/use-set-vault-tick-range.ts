@@ -19,19 +19,19 @@ export function useSetVaultTickRange({
 				args: [tickLower, tickUpper],
 			});
 		},
-	prepareSetVaultTickRangeCallData: (
-		tickLower: number,
-		tickUpper: number,
-	) => {
-		return {
-			target: vaultAddress as `0x${string}`,
-			allowFailure: false,
-			callData: encodeFunctionData({
-				abi: V4_AGENTIC_VAULT_ABI,
-				functionName: 'setAllowedTickRange',
-				args: [tickLower, tickUpper],
-			}),
-		} as const;
-	},
+		prepareSetVaultTickRangeCallData: (
+			tickLower: number,
+			tickUpper: number,
+		) => {
+			return {
+				target: vaultAddress as `0x${string}`,
+				allowFailure: false,
+				callData: encodeFunctionData({
+					abi: V4_AGENTIC_VAULT_ABI,
+					functionName: 'setAllowedTickRange',
+					args: [tickLower, tickUpper],
+				}),
+			} as const;
+		},
 	};
 }

@@ -18,16 +18,16 @@ export function useSetMaxPositionsK({
 				args: [maxPositionsK],
 			});
 		},
-	prepareSetMaxPositionsKCallData: (maxPositionsK: bigint) => {
-		return {
-			target: vaultAddress as `0x${string}`,
-			allowFailure: false,
-			callData: encodeFunctionData({
-				abi: V4_AGENTIC_VAULT_ABI,
-				functionName: 'setMaxPositionsK',
-				args: [maxPositionsK],
-			}),
-		} as const;
-	},
+		prepareSetMaxPositionsKCallData: (maxPositionsK: bigint) => {
+			return {
+				target: vaultAddress as `0x${string}`,
+				allowFailure: false,
+				callData: encodeFunctionData({
+					abi: V4_AGENTIC_VAULT_ABI,
+					functionName: 'setMaxPositionsK',
+					args: [maxPositionsK],
+				}),
+			} as const;
+		},
 	};
 }

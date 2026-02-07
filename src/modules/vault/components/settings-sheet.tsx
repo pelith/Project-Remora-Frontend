@@ -50,10 +50,8 @@ export const SettingsSheet = ({
 		setVaultTickRange: setVaultTickRangeFn,
 		isPending: isPendingVaultTickRange,
 	} = useSetVaultTickRange({ vaultAddress });
-	const {
-		setSwapAllowed: setSwapAllowedFn,
-		isPending: isPendingSwapAllowed,
-	} = useSetSwapAllowed({ vaultAddress });
+	const { setSwapAllowed: setSwapAllowedFn, isPending: isPendingSwapAllowed } =
+		useSetSwapAllowed({ vaultAddress });
 	const {
 		setMaxPositionsK: setMaxPositionsKFn,
 		isPending: isPendingMaxPositionsK,
@@ -131,10 +129,7 @@ export const SettingsSheet = ({
 		// 'custom' keeps current values or lets user edit
 	};
 
-	const handleManualPriceChange = (
-		isLower: boolean,
-		priceStr: string,
-	) => {
+	const handleManualPriceChange = (isLower: boolean, priceStr: string) => {
 		const price = Number.parseFloat(priceStr);
 		if (!Number.isNaN(price)) {
 			const tick = getTickFromPrice(price);
@@ -349,9 +344,7 @@ export const SettingsSheet = ({
 
 						<div className='flex items-center justify-between p-3 rounded-lg border border-primary/30 bg-primary/5'>
 							<div className='space-y-0.5 flex-1'>
-								<Label className='text-sm font-medium'>
-									Enable Auto-Swap
-								</Label>
+								<Label className='text-sm font-medium'>Enable Auto-Swap</Label>
 								<p className='text-xs text-text-muted max-w-[250px]'>
 									Allow the Agent to automatically swap tokens to maintain the
 									target ratio during rebalancing.

@@ -75,32 +75,32 @@ export function CreateVaultStep2Container() {
 					}
 					className='grid grid-cols-2 gap-4'
 				>
-				{[
-					{
-						value: 'conservative',
-						label: 'Conservative',
-						range: '±50% range',
-						desc: getPriceRangeDisplay(0.5),
-					},
-					{
-						value: 'standard',
-						label: 'Standard',
-						range: '±20% range',
-						desc: getPriceRangeDisplay(0.2),
-					},
-					{
-						value: 'aggressive',
-						label: 'Aggressive',
-						range: '±10% range',
-						desc: getPriceRangeDisplay(0.1),
-					},
-					{
-						value: 'custom',
-						label: 'Custom',
-						range: 'Manual set',
-						desc: 'Custom price range',
-					},
-				].map((opt) => (
+					{[
+						{
+							value: 'conservative',
+							label: 'Conservative',
+							range: '±50% range',
+							desc: getPriceRangeDisplay(0.5),
+						},
+						{
+							value: 'standard',
+							label: 'Standard',
+							range: '±20% range',
+							desc: getPriceRangeDisplay(0.2),
+						},
+						{
+							value: 'aggressive',
+							label: 'Aggressive',
+							range: '±10% range',
+							desc: getPriceRangeDisplay(0.1),
+						},
+						{
+							value: 'custom',
+							label: 'Custom',
+							range: 'Manual set',
+							desc: 'Custom price range',
+						},
+					].map((opt) => (
 						<div key={opt.value}>
 							<RadioGroupItem
 								value={opt.value}

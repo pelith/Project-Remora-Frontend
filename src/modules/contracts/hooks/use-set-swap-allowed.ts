@@ -15,16 +15,16 @@ export function useSetSwapAllowed({ vaultAddress }: { vaultAddress: string }) {
 				args: [swapAllowed],
 			});
 		},
-	prepareSetSwapAllowedCallData: (swapAllowed: boolean) => {
-		return {
-			target: vaultAddress as `0x${string}`,
-			allowFailure: false,
-			callData: encodeFunctionData({
-				abi: V4_AGENTIC_VAULT_ABI,
-				functionName: 'setSwapAllowed',
-				args: [swapAllowed],
-			}),
-		} as const;
-	},
+		prepareSetSwapAllowedCallData: (swapAllowed: boolean) => {
+			return {
+				target: vaultAddress as `0x${string}`,
+				allowFailure: false,
+				callData: encodeFunctionData({
+					abi: V4_AGENTIC_VAULT_ABI,
+					functionName: 'setSwapAllowed',
+					args: [swapAllowed],
+				}),
+			} as const;
+		},
 	};
 }
