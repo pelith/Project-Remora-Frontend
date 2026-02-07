@@ -1,21 +1,27 @@
-import type { Vault } from '../types/vault.types';
+import { Layers } from 'lucide-react';
+import { useMemo } from 'react';
+import { formatUnits } from 'viem';
+import { Badge } from '@/modules/common/components/ui/badge';
 import {
 	Card,
+	CardContent,
 	CardHeader,
 	CardTitle,
-	CardContent,
 } from '@/modules/common/components/ui/card';
-import { Badge } from '@/modules/common/components/ui/badge';
-import { Layers } from 'lucide-react';
-import { getMockPrice } from '../utils/vault-utils';
+import { parseToBigNumber } from '@/modules/common/utils/bignumber';
+import type { VaultAssetsData } from '@/modules/contracts/hooks/use-vault-assets';
+import type { Position } from '@/modules/contracts/services/position-token-amount-api';
+import { tickToPrice } from '../utils/vault-utils';
 
 interface PositionsTableProps {
-	vault: Vault;
+	positions: Position[];
+	vaultAssets?: VaultAssetsData;
 }
 
-export const PositionsTable = ({ vault }: PositionsTableProps) => {
-	const currentPrice = getMockPrice(vault.poolKey.token0.symbol);
-
+export const PositionsTable = ({
+	positions,
+	vaultAssets,
+}: PositionsTableProps) => {
 	const formatPrice = (price: number) => {
 		return new Intl.NumberFormat('en-US', {
 			style: 'currency',
@@ -24,18 +30,54 @@ export const PositionsTable = ({ vault }: PositionsTableProps) => {
 		}).format(price);
 	};
 
-	// Convert relative BPS tick (mock data) to price
-	const getPriceFromRelativeTick = (relativeTickBps: number) => {
-		// Formula: Price = CurrentPrice * (1 + tickBps/10000)
-		return currentPrice * (1 + relativeTickBps / 10000);
+	const token0Decimals = vaultAssets?.token0?.decimals ?? 18;
+	const token1Decimals = vaultAssets?.token1?.decimals ?? 6;
+
+	// Convert ticks to prices using tickToPrice formula
+	const getPriceFromTick = (tick: number) => {
+		return tickToPrice(tick, token0Decimals, token1Decimals);
 	};
 
-	// Sort positions by price (tick) ascending: Lowest Price -> Highest Price
-	const sortedPositions = [...vault.positions].sort(
-		(a, b) => a.tickLower - b.tickLower,
+	// Convert API positions to display format with liquidity USD calculation
+	const displayPositions = useMemo(() => {
+		return positions.map((pos) => {
+			// Calculate liquidity USD using token amounts and prices
+			const token0Price = vaultAssets?.token0?.price ?? 0;
+			const token1Price = vaultAssets?.token1?.price ?? 0;
+
+			// Convert raw amounts to formatted numbers
+			const amount0 = parseToBigNumber(
+				pos.amount0 ? formatUnits(BigInt(pos.amount0), token0Decimals) : '0',
+			);
+			const amount1 = parseToBigNumber(
+				pos.amount1 ? formatUnits(BigInt(pos.amount1), token1Decimals) : '0',
+			);
+
+			// Calculate liquidity USD
+			const liquidityUSD = amount0
+				.multipliedBy(token0Price)
+				.plus(amount1.multipliedBy(token1Price))
+				.toNumber();
+
+			// For now, inRange is set to false (will be calculated when price data is available)
+			const inRange = false;
+
+			return {
+				id: pos.tokenId,
+				priceLower: getPriceFromTick(pos.tickLower),
+				priceUpper: getPriceFromTick(pos.tickUpper),
+				liquidityUSD,
+				inRange,
+			};
+		});
+	}, [positions, vaultAssets]);
+
+	// Sort positions by tick ascending: Lowest Price -> Highest Price
+	const sortedPositions = [...displayPositions].sort(
+		(a, b) => a.priceLower - b.priceLower,
 	);
 
-	if (vault.positions.length === 0) {
+	if (positions.length === 0) {
 		return (
 			<Card className='min-h-[200px] border-border-default/50 bg-surface-card/50'>
 				<CardHeader className='py-3 px-4 border-b border-border-default/40'>
@@ -69,7 +111,7 @@ export const PositionsTable = ({ vault }: PositionsTableProps) => {
 						variant='secondary'
 						className='font-mono text-[10px] h-5 px-2 bg-surface-elevated border-border-default/50'
 					>
-						{vault.positions.length} ACTIVE
+						{positions.length} ACTIVE
 					</Badge>
 				</div>
 			</CardHeader>
@@ -85,9 +127,6 @@ export const PositionsTable = ({ vault }: PositionsTableProps) => {
 						</thead>
 						<tbody className='divide-y divide-border-default/30'>
 							{sortedPositions.map((pos) => {
-								const priceLower = getPriceFromRelativeTick(pos.tickLower);
-								const priceUpper = getPriceFromRelativeTick(pos.tickUpper);
-
 								return (
 									<tr
 										key={pos.id}
@@ -96,7 +135,8 @@ export const PositionsTable = ({ vault }: PositionsTableProps) => {
 										<td className='px-4 py-2 font-mono text-xs text-text-secondary group-hover:text-text-primary transition-colors'>
 											<div className='flex flex-col gap-0.5'>
 												<span className='font-medium text-text-primary'>
-													{formatPrice(priceLower)} - {formatPrice(priceUpper)}
+													{formatPrice(pos.priceLower)} -{' '}
+													{formatPrice(pos.priceUpper)}
 												</span>
 											</div>
 										</td>

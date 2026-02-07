@@ -1,30 +1,22 @@
-import { useMemo } from 'react';
 import {
-	Chart as ChartJS,
-	CategoryScale,
-	LinearScale,
 	BarElement,
-	Tooltip,
-	Legend,
-	type ChartOptions,
+	CategoryScale,
 	type ChartData,
-	type Plugin,
-} from 'chart.js';
-import { Bar } from 'react-chartjs-2';
-import type { Vault } from '../types/vault.types';
-import {
-	generateLiquidityChartData,
-} from '../utils/liquidity-chart-utils';
-import { Card } from '@/modules/common/components/ui/card';
-import { TrendingUp } from 'lucide-react';
-
-ChartJS.register(
-	CategoryScale,
-	LinearScale,
-	BarElement,
-	Tooltip,
+	Chart as ChartJS,
+	type ChartOptions,
 	Legend,
-);
+	LinearScale,
+	type Plugin,
+	Tooltip,
+} from 'chart.js';
+import { TrendingUp } from 'lucide-react';
+import { useMemo } from 'react';
+import { Bar } from 'react-chartjs-2';
+import { Card } from '@/modules/common/components/ui/card';
+import type { Vault } from '../types/vault.types';
+import { generateLiquidityChartData } from '../utils/liquidity-chart-utils';
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
 interface LiquidityDistributionChartProps {
 	vault: Vault;
@@ -57,7 +49,10 @@ function createOverlayPlugin(
 					console.warn(`Position ${idx}: Could not find indices`, {
 						tickLower: position.tickLower,
 						tickUpper: position.tickUpper,
-						priceRange: [chartData.rawLabels[0], chartData.rawLabels[chartData.rawLabels.length - 1]],
+						priceRange: [
+							chartData.rawLabels[0],
+							chartData.rawLabels[chartData.rawLabels.length - 1],
+						],
 					});
 					return;
 				}
@@ -68,28 +63,38 @@ function createOverlayPlugin(
 				const width = rightX - leftX;
 
 				if (width <= 0) {
-					console.warn(`Position ${idx}: Invalid width`, { leftX, rightX, width });
+					console.warn(`Position ${idx}: Invalid width`, {
+						leftX,
+						rightX,
+						width,
+					});
 					return;
 				}
 
 				const chartHeight = yAxisRight.bottom - yAxisRight.top;
-				
+
 				// Calculate height based on right axis
 				// Use a more reasonable scaling: ensure positions are visible
 				const maxPositionLiquidity = Math.max(
-					...chartData.agentPositions.map(p => p.liquidity),
-					position.liquidity
+					...chartData.agentPositions.map((p) => p.liquidity),
+					position.liquidity,
 				);
 				// Scale based on max position, not rightYMax (which might be too large)
-				const effectiveMax = Math.max(chartData.rightYMax, maxPositionLiquidity * 1.2);
-				const heightRatio = effectiveMax > 0 
-					? position.liquidity / effectiveMax 
-					: 0;
+				const effectiveMax = Math.max(
+					chartData.rightYMax,
+					maxPositionLiquidity * 1.2,
+				);
+				const heightRatio =
+					effectiveMax > 0 ? position.liquidity / effectiveMax : 0;
 				const calculatedHeight = chartHeight * heightRatio;
 
 				// Find minimum market liquidity height in range (for constraint)
-				let minMarketHeightInRange = Infinity;
-				for (let i = lowerIndex; i <= upperIndex && i < chartData.marketLiquidity.length; i++) {
+				let minMarketHeightInRange = Number.POSITIVE_INFINITY;
+				for (
+					let i = lowerIndex;
+					i <= upperIndex && i < chartData.marketLiquidity.length;
+					i++
+				) {
 					const marketHeightRatio =
 						chartData.marketLiquidity[i] / chartData.leftYMax;
 					const marketHeight = chartHeight * marketHeightRatio;
@@ -101,9 +106,12 @@ function createOverlayPlugin(
 				// Apply constraints: calculated height, min height, max market height
 				// But prioritize visibility - ensure at least MIN_HEIGHT_PX
 				let finalHeight = Math.max(calculatedHeight, MIN_HEIGHT_PX);
-				
+
 				// Only constrain by market height if it's reasonable (not too restrictive)
-				if (minMarketHeightInRange !== Infinity && minMarketHeightInRange > MIN_HEIGHT_PX) {
+				if (
+					minMarketHeightInRange !== Number.POSITIVE_INFINITY &&
+					minMarketHeightInRange > MIN_HEIGHT_PX
+				) {
 					finalHeight = Math.min(finalHeight, minMarketHeightInRange);
 				}
 
@@ -221,12 +229,9 @@ function createOverlayPlugin(
 
 			// Draw Current Price Line
 			const currentX = xAxis.getPixelForValue(chartData.currentPriceIndex);
-			const currentPrice =
-				chartData.rawLabels[chartData.currentPriceIndex];
+			const currentPrice = chartData.rawLabels[chartData.currentPriceIndex];
 			const inRange = chartData.agentPositions.some(
-				(pos) =>
-					currentPrice >= pos.tickLower &&
-					currentPrice <= pos.tickUpper,
+				(pos) => currentPrice >= pos.tickLower && currentPrice <= pos.tickUpper,
 			);
 
 			ctx.save();
@@ -262,20 +267,16 @@ function createOverlayPlugin(
 export const LiquidityDistributionChart = ({
 	vault,
 }: LiquidityDistributionChartProps) => {
-
-	const chartData = useMemo(
-		() => {
-			const data = generateLiquidityChartData(vault);
-			// Debug: Log positions data
-			if (data.agentPositions.length === 0) {
-				console.log('No agent positions - chart will show empty state');
-			} else {
-				console.log('Agent positions for chart:', data.agentPositions);
-			}
-			return data;
-		},
-		[vault, vault.positions.length, vault.agentStatus],
-	);
+	const chartData = useMemo(() => {
+		const data = generateLiquidityChartData(vault);
+		// Debug: Log positions data
+		if (data.agentPositions.length === 0) {
+			console.log('No agent positions - chart will show empty state');
+		} else {
+			console.log('Agent positions for chart:', data.agentPositions);
+		}
+		return data;
+	}, [vault, vault.positions.length, vault.agentStatus]);
 
 	const overlayPlugin = useMemo(
 		() => createOverlayPlugin(chartData),
@@ -285,15 +286,13 @@ export const LiquidityDistributionChart = ({
 	// Force chart re-render when vault positions or agent status changes
 	// Using key prop to ensure chart updates when data changes
 	// Include positions count, agent status, and a hash of position IDs
-	const chartKey = useMemo(
-		() => {
-			const positionsHash = vault.positions.length > 0
-				? vault.positions.map(p => p.id).join('-')
+	const chartKey = useMemo(() => {
+		const positionsHash =
+			vault.positions.length > 0
+				? vault.positions.map((p) => p.id).join('-')
 				: 'empty';
-			return `chart-${vault.id}-${vault.positions.length}-${vault.agentStatus}-${positionsHash}`;
-		},
-		[vault.id, vault.positions.length, vault.agentStatus, vault.positions],
-	);
+		return `chart-${vault.id}-${vault.positions.length}-${vault.agentStatus}-${positionsHash}`;
+	}, [vault.id, vault.positions.length, vault.agentStatus, vault.positions]);
 
 	// Prepare Chart.js data
 	const chartJsData: ChartData<'bar'> = useMemo(
@@ -339,39 +338,30 @@ export const LiquidityDistributionChart = ({
 					padding: 12,
 					callbacks: {
 						title: (context) => {
-							return 'Price: ' + context[0].label;
+							return `Price: ${context[0].label}`;
 						},
 						label: (context) => {
 							const value = context.parsed.y;
 							if (value == null) return 'Market Liquidity: $0';
-							return 'Market Liquidity: $' + value.toLocaleString();
+							return `Market Liquidity: $${value.toLocaleString()}`;
 						},
 						afterBody: (context) => {
-							const price =
-								chartData.rawLabels[context[0].dataIndex];
+							const price = chartData.rawLabels[context[0].dataIndex];
 							const position = chartData.agentPositions.find(
-								(pos) =>
-									price >= pos.tickLower &&
-									price <= pos.tickUpper,
+								(pos) => price >= pos.tickLower && price <= pos.tickUpper,
 							);
 
 							if (position) {
-								const posIndex =
-									chartData.agentPositions.indexOf(position) +
-									1;
+								const posIndex = chartData.agentPositions.indexOf(position) + 1;
 								const maxAgentLiquidity = Math.max(
-									...chartData.agentPositions.map(
-										(p) => p.liquidity,
-									),
+									...chartData.agentPositions.map((p) => p.liquidity),
 								);
 								const pctOfMax = (
 									(position.liquidity / maxAgentLiquidity) *
 									100
 								).toFixed(0);
 								const marketAtPoint =
-									chartData.marketLiquidity[
-										context[0].dataIndex
-									];
+									chartData.marketLiquidity[context[0].dataIndex];
 								const marketShare = (
 									(position.liquidity / marketAtPoint) *
 									100
@@ -415,7 +405,7 @@ export const LiquidityDistributionChart = ({
 					ticks: {
 						color: 'rgba(14, 165, 233, 1)',
 						font: { size: 10, family: 'JetBrains Mono' },
-						callback: (v) => '$' + (Number(v) / 1000).toFixed(0) + 'K',
+						callback: (v) => `$${(Number(v) / 1000).toFixed(0)}K`,
 						padding: 8,
 					},
 					title: {
@@ -430,16 +420,16 @@ export const LiquidityDistributionChart = ({
 					position: 'right',
 					min: 0,
 					// Use max position liquidity * 1.2 for better visibility
-					max: chartData.agentPositions.length > 0
-						? Math.max(
-								...chartData.agentPositions.map(p => p.liquidity),
-							) * 1.2
-						: chartData.rightYMax,
+					max:
+						chartData.agentPositions.length > 0
+							? Math.max(...chartData.agentPositions.map((p) => p.liquidity)) *
+								1.2
+							: chartData.rightYMax,
 					grid: { drawOnChartArea: false },
 					ticks: {
 						color: 'rgba(255, 152, 0, 1)',
 						font: { size: 10, family: 'JetBrains Mono' },
-						callback: (v) => '$' + (Number(v) / 1000).toFixed(1) + 'K',
+						callback: (v) => `$${(Number(v) / 1000).toFixed(1)}K`,
 						padding: 8,
 					},
 					title: {
@@ -453,7 +443,8 @@ export const LiquidityDistributionChart = ({
 			onHover: (event, activeElements) => {
 				const canvas = event.native?.target as HTMLCanvasElement;
 				if (canvas) {
-					canvas.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
+					canvas.style.cursor =
+						activeElements.length > 0 ? 'pointer' : 'default';
 				}
 			},
 		}),
@@ -504,10 +495,7 @@ export const LiquidityDistributionChart = ({
 							<span>Agent Positions (Right Axis)</span>
 						</div>
 						<div className='flex items-center gap-2 text-text-secondary'>
-							<div
-								className='w-5 h-[2px]'
-								style={{ background: '#4ade80' }}
-							/>
+							<div className='w-5 h-[2px]' style={{ background: '#4ade80' }} />
 							<span>Current Price</span>
 						</div>
 						<div className='flex items-center gap-2 text-text-secondary'>
@@ -526,4 +514,3 @@ export const LiquidityDistributionChart = ({
 		</div>
 	);
 };
-

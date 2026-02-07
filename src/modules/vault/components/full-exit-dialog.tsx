@@ -1,6 +1,3 @@
-import { useSetAtom } from 'jotai';
-import type { Vault } from '../types/vault.types';
-import { fullExitAtom } from '../stores/vault.store';
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -10,43 +7,37 @@ import {
 	AlertDialogFooter,
 	AlertDialogHeader,
 	AlertDialogTitle,
+	AlertDialogTrigger,
 } from '@/modules/common/components/ui/alert-dialog';
+import { useVaultPauseAndExitAll } from '@/modules/contracts/hooks/use-vault-pause-and-exit-all';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useAtomValue } from 'jotai';
-import { isLoadingAtom } from '../stores/vault.store';
 
 interface FullExitDialogProps {
-	vault: Vault;
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	onSuccess: () => void;
+	vaultAddress: string;
+	trigger: React.ReactNode;
 }
 
 export const FullExitDialog = ({
-	vault,
-	open,
-	onOpenChange,
-	onSuccess,
+	vaultAddress,
+	trigger,
 }: FullExitDialogProps) => {
-	const fullExit = useSetAtom(fullExitAtom);
-	const isLoading = useAtomValue(isLoadingAtom);
+	const { exitAll, isPending } = useVaultPauseAndExitAll(vaultAddress);
 
 	const handleConfirm = async () => {
 		try {
-			await fullExit(vault.id);
+			await exitAll();
 			toast.success('Full Exit Complete', {
 				description: 'All positions closed. Funds moved to available balance.',
 			});
-			onOpenChange(false);
-			onSuccess();
-		} catch (e) {
+		} catch (_error) {
 			toast.error('Full Exit Failed');
 		}
 	};
 
 	return (
-		<AlertDialog open={open} onOpenChange={onOpenChange}>
+		<AlertDialog>
+			<AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
 			<AlertDialogContent>
 				<AlertDialogHeader>
 					<AlertDialogTitle className='text-destructive'>
@@ -55,36 +46,24 @@ export const FullExitDialog = ({
 					<AlertDialogDescription className='space-y-2'>
 						<span className='block'>
 							This action will close all active positions and move all funds to
-							your Available Balance. The AI Agent will be stopped.
-						</span>
-						<span className='block bg-surface-elevated p-3 rounded-md text-xs font-mono'>
-							<span className='flex justify-between'>
-								<span>Funds in Positions:</span>
-								<span className='text-text-primary'>
-									{vault.inPositions.token0.toFixed(4)}{' '}
-									{vault.poolKey.token0.symbol} +{' '}
-									{vault.inPositions.token1.toFixed(4)}{' '}
-									{vault.poolKey.token1.symbol}
-								</span>
-							</span>
+							your Available Balance. The AI Agent will be paused.
 						</span>
 						<span className='block'>
-							After confirmation, you will be prompted to withdraw these funds
-							to your wallet.
+							After confirmation, you can withdraw these funds to your wallet.
 						</span>
 					</AlertDialogDescription>
 				</AlertDialogHeader>
 				<AlertDialogFooter>
-					<AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
+					<AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
 					<AlertDialogAction
 						onClick={(e) => {
 							e.preventDefault();
 							handleConfirm();
 						}}
 						className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
-						disabled={isLoading}
+						disabled={isPending}
 					>
-						{isLoading ? (
+						{isPending ? (
 							<Loader2 className='w-4 h-4 animate-spin' />
 						) : (
 							'Confirm Full Exit'

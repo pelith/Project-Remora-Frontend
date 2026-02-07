@@ -1,9 +1,8 @@
-import { useSetAtom } from 'jotai';
+import { useAppKitAccount } from '@reown/appkit/react';
 import { AlertCircle } from 'lucide-react';
 import { useState } from 'react';
-import { toast } from 'sonner';
+import { parseUnits } from 'viem';
 import { cn } from '@/lib/utils';
-import { Alert, AlertDescription } from '@/modules/common/components/ui/alert';
 import { Button } from '@/modules/common/components/ui/button';
 import { Input } from '@/modules/common/components/ui/input';
 import { Label } from '@/modules/common/components/ui/label';
@@ -11,111 +10,101 @@ import {
 	Sheet,
 	SheetContent,
 	SheetDescription,
-	SheetFooter,
 	SheetHeader,
 	SheetTitle,
+	SheetTrigger,
 } from '@/modules/common/components/ui/sheet';
-import { depositAtom } from '../stores/vault.store';
-import type { Vault } from '../types/vault.types';
+import { parseToBigNumber } from '@/modules/common/utils/bignumber';
+import formatValueToStandardDisplay from '@/modules/common/utils/formatValueToStandardDisplay';
+import { useSendTokenToVault } from '@/modules/contracts/hooks/use-send-token-to-vault';
+import { useTokenInfoAndBalance } from '@/modules/contracts/hooks/use-token-info-and-balance';
 
 interface DepositSheetProps {
-	vault: Vault;
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
+	vaultAddress: string;
+	token0Address: string;
+	token1Address: string;
+	trigger: React.ReactNode;
 }
 
 export const DepositSheet = ({
-	vault,
-	open,
-	onOpenChange,
+	vaultAddress,
+	token0Address,
+	token1Address,
+	trigger,
 }: DepositSheetProps) => {
 	// Mock wallet connection for demo
-	const isConnected = true;
-	const deposit = useSetAtom(depositAtom);
+	const { isConnected, address } = useAppKitAccount();
 
 	const [amount0, setAmount0] = useState('');
 	const [amount1, setAmount1] = useState('');
+	const { send: sendToken0, isLoading: isSendingToken0 } = useSendTokenToVault(
+		vaultAddress,
+		token0Address,
+	);
+	const { send: sendToken1, isLoading: isSendingToken1 } = useSendTokenToVault(
+		vaultAddress,
+		token1Address,
+	);
+	const token0Info = useTokenInfoAndBalance(address ?? '', token0Address);
+	const token1Info = useTokenInfoAndBalance(address ?? '', token1Address);
 	const [errors, setErrors] = useState<{ token0?: string; token1?: string }>(
 		{},
 	);
 
-	// Helper to determine asset type
-	const isToken0Eth = ['ETH', 'WBTC', 'UNI'].includes(
-		vault.poolKey.token0.symbol,
-	);
-
-	// Mock balances for demo - always have enough balance
-	const avail0 = isToken0Eth ? '100.00' : '10000.00';
-	const avail1 = isToken0Eth ? '10000.00' : '100.00';
-
-	const validate = () => {
-		const newErrors: { token0?: string; token1?: string } = {};
-		const val0 = Number.parseFloat(amount0) || 0;
-		const val1 = Number.parseFloat(amount1) || 0;
-
-		// Parse balances (remove commas)
-		const max0 = Number.parseFloat(avail0.replace(/,/g, ''));
-		const max1 = Number.parseFloat(avail1.replace(/,/g, ''));
-
-		if (val0 > max0) {
-			newErrors.token0 = 'Insufficient balance';
-		}
-		if (val1 > max1) {
-			newErrors.token1 = 'Insufficient balance';
-		}
-
-		if (val0 < 0) newErrors.token0 = 'Invalid amount';
-		if (val1 < 0) newErrors.token1 = 'Invalid amount';
-
-		setErrors(newErrors);
-		return Object.keys(newErrors).length === 0;
-	};
-
-	const handleDeposit = async () => {
-		if (!validate()) return;
-
-		// Ensure at least one amount is > 0
-		if (
-			(Number.parseFloat(amount0) || 0) <= 0 &&
-			(Number.parseFloat(amount1) || 0) <= 0
-		) {
-			toast.error('Please enter an amount to deposit');
+	const handleDepositToken0 = () => {
+		// validate isNaN
+		const amountBign = parseToBigNumber(amount0);
+		if (amountBign.isNaN()) {
+			setErrors((prev) => ({ ...prev, token0: 'Invalid amount' }));
 			return;
 		}
-
-		try {
-			await deposit(vault.id, amount0, amount1);
-			toast.success('Assets deposited successfully', {
-				description: `Deposited ${amount0 || '0'} ${vault.poolKey.token0.symbol} and ${amount1 || '0'} ${vault.poolKey.token1.symbol}`,
-			});
-			onOpenChange(false);
-			setAmount0('');
-			setAmount1('');
-			setErrors({});
-		} catch (_error) {
-			toast.error('Deposit failed', {
-				description: 'Please try again later.',
-			});
+		if (amountBign.lte(0)) {
+			setErrors((prev) => ({
+				...prev,
+				token0: 'Amount must be greater than 0',
+			}));
+			return;
 		}
+		if (amountBign.gt(token0Info?.balance ?? 0)) {
+			setErrors((prev) => ({ ...prev, token0: 'Insufficient balance' }));
+			return;
+		}
+		setErrors((prev) => ({ ...prev, token0: undefined }));
+		sendToken0(parseUnits(amountBign.toString(), token0Info?.decimals ?? 18));
 	};
-
-	// Helper to format display balance
-	const formatBalance = (bal: string) => {
-		return bal; // Already formatted
+	const handleDepositToken1 = () => {
+		// validate isNaN
+		const amountBign = parseToBigNumber(amount1);
+		if (amountBign.isNaN()) {
+			setErrors((prev) => ({ ...prev, token1: 'Invalid amount' }));
+			return;
+		}
+		if (amountBign.lte(0)) {
+			setErrors((prev) => ({
+				...prev,
+				token1: 'Amount must be greater than 0',
+			}));
+			return;
+		}
+		if (amountBign.gt(token1Info?.balance ?? 0)) {
+			setErrors((prev) => ({ ...prev, token1: 'Insufficient balance' }));
+			return;
+		}
+		setErrors((prev) => ({ ...prev, token1: undefined }));
+		sendToken1(parseUnits(amountBign.toString(), token1Info?.decimals ?? 18));
 	};
 
 	return (
 		<Sheet
-			open={open}
 			onOpenChange={(val) => {
 				if (!val) {
 					setAmount0('');
 					setAmount1('');
 					setErrors({});
 				}
-				onOpenChange(val);
 			}}
 		>
+			<SheetTrigger asChild>{trigger}</SheetTrigger>
 			<SheetContent>
 				<SheetHeader>
 					<SheetTitle>Deposit Assets</SheetTitle>
@@ -129,10 +118,11 @@ export const DepositSheet = ({
 					<div className='space-y-2'>
 						<div className='flex justify-between text-xs'>
 							<Label className={cn(errors.token0 && 'text-error')}>
-								Amount {vault.poolKey.token0.symbol}
+								Amount {token0Info?.symbol}
 							</Label>
 							<span className='text-text-muted'>
-								Wallet: {formatBalance(avail0)}
+								Wallet:{' '}
+								{formatValueToStandardDisplay(token0Info?.balance ?? '0')}
 							</span>
 						</div>
 						<div className='flex gap-2'>
@@ -151,7 +141,7 @@ export const DepositSheet = ({
 							<Button
 								variant='outline'
 								onClick={() => {
-									setAmount0(avail0.replace(/,/g, ''));
+									setAmount0(token0Info?.balance ?? '');
 									if (errors.token0)
 										setErrors((prev) => ({ ...prev, token0: undefined }));
 								}}
@@ -164,15 +154,24 @@ export const DepositSheet = ({
 								<AlertCircle className='w-3 h-3' /> {errors.token0}
 							</p>
 						)}
+
+						<Button
+							className='w-full'
+							onClick={handleDepositToken0}
+							disabled={!isConnected || isSendingToken0}
+						>
+							Confirm Deposit {token0Info?.symbol}
+						</Button>
 					</div>
 
 					<div className='space-y-2'>
 						<div className='flex justify-between text-xs'>
 							<Label className={cn(errors.token1 && 'text-error')}>
-								Amount {vault.poolKey.token1.symbol}
+								Amount {token1Info?.symbol}
 							</Label>
 							<span className='text-text-muted'>
-								Wallet: {formatBalance(avail1)}
+								Wallet:{' '}
+								{formatValueToStandardDisplay(token1Info?.balance ?? '0')}
 							</span>
 						</div>
 						<div className='flex gap-2'>
@@ -191,7 +190,7 @@ export const DepositSheet = ({
 							<Button
 								variant='outline'
 								onClick={() => {
-									setAmount1(avail1.replace(/,/g, ''));
+									setAmount1(token1Info?.balance ?? '');
 									if (errors.token1)
 										setErrors((prev) => ({ ...prev, token1: undefined }));
 								}}
@@ -204,27 +203,16 @@ export const DepositSheet = ({
 								<AlertCircle className='w-3 h-3' /> {errors.token1}
 							</p>
 						)}
+
+						<Button
+							className='w-full'
+							onClick={handleDepositToken1}
+							disabled={!isConnected || isSendingToken1}
+						>
+							Confirm Deposit {token1Info?.symbol}
+						</Button>
 					</div>
-
-					{(errors.token0 || errors.token1) && (
-						<Alert variant='destructive' className='py-2'>
-							<AlertCircle className='h-4 w-4' />
-							<AlertDescription className='text-xs'>
-								You cannot deposit more than your wallet balance.
-							</AlertDescription>
-						</Alert>
-					)}
 				</div>
-
-				<SheetFooter>
-					<Button
-						className='w-full'
-						onClick={handleDeposit}
-						disabled={!isConnected}
-					>
-						Confirm Deposit
-					</Button>
-				</SheetFooter>
 			</SheetContent>
 		</Sheet>
 	);

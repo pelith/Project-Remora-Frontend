@@ -50,7 +50,7 @@ export default function Header() {
 							className='flex items-center gap-2 hover:opacity-90 transition-opacity'
 						>
 							<img
-								src='android-chrome-192x192.png'
+								src='/android-chrome-192x192.png'
 								alt='Agentic Vault'
 								className='h-8 w-8 rounded-full'
 							/>
