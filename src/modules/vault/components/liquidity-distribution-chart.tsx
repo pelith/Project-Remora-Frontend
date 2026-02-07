@@ -1,3 +1,4 @@
+import type { Chart } from 'chart.js';
 import {
 	BarElement,
 	CategoryScale,
@@ -10,34 +11,54 @@ import {
 	Tooltip,
 } from 'chart.js';
 import { TrendingUp } from 'lucide-react';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Bar } from 'react-chartjs-2';
 import { Card } from '@/modules/common/components/ui/card';
+import type { LiquidityDistributionResponse } from '@/modules/contracts/services/liquidity-distribution-api';
 import type { Vault } from '../types/vault.types';
-import { generateLiquidityChartData } from '../utils/liquidity-chart-utils';
+import { generateLiquidityChartDataFromAPI } from '../utils/liquidity-chart-utils';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
 interface LiquidityDistributionChartProps {
 	vault: Vault;
+	liquidityDistributionData?: LiquidityDistributionResponse | null;
+	currentPrice?: number;
 }
 
 // Custom plugin to draw agent positions and overlays
 function createOverlayPlugin(
-	chartData: ReturnType<typeof generateLiquidityChartData>,
+	chartData: ReturnType<typeof generateLiquidityChartDataFromAPI>,
 ): Plugin<'bar'> {
 	return {
 		id: 'agentPositionsAndOverlays',
 		afterDatasetsDraw: (chart) => {
 			const ctx = chart.ctx;
 			const xAxis = chart.scales.x;
-			const yAxisRight = chart.scales.yRight;
 			const yAxisLeft = chart.scales.yLeft;
 
-			const MIN_HEIGHT_PX = 20;
+			const MIN_HEIGHT_PX = 6;
 
-			// Draw Agent Position Boxes
-			chartData.agentPositions.forEach((position, idx) => {
+			// Use left axis height for drawing
+			const chartHeight = yAxisLeft.bottom - yAxisLeft.top;
+
+			// Step 1: Calculate relative heights based on USD value (preserving relative sizes)
+			const maxLiquidityUSD =
+				chartData.agentPositions.length > 0
+					? Math.max(...chartData.agentPositions.map((p) => p.liquidity))
+					: 1;
+
+			// Step 2: For each position, find the minimum market liquidity height in its price range
+			// and calculate the maximum allowed height
+			const positionConstraints: Array<{
+				position: (typeof chartData.agentPositions)[0];
+				lowerIndex: number;
+				upperIndex: number;
+				relativeHeight: number; // Height based on USD value ratio (0-1)
+				maxAllowedHeight: number; // Maximum height based on market liquidity
+			}> = [];
+
+			chartData.agentPositions.forEach((position) => {
 				const lowerIndex = chartData.rawLabels.findIndex(
 					(p) => p >= position.tickLower,
 				);
@@ -46,16 +67,87 @@ function createOverlayPlugin(
 				);
 
 				if (lowerIndex === -1 || upperIndex === -1) {
-					console.warn(`Position ${idx}: Could not find indices`, {
-						tickLower: position.tickLower,
-						tickUpper: position.tickUpper,
-						priceRange: [
-							chartData.rawLabels[0],
-							chartData.rawLabels[chartData.rawLabels.length - 1],
-						],
-					});
 					return;
 				}
+
+				// Calculate relative height based on USD value (0-1)
+				const relativeHeight =
+					maxLiquidityUSD > 0 ? position.liquidity / maxLiquidityUSD : 0;
+
+				// Find minimum market liquidity height in this position's price range
+				let minMarketHeight = Number.POSITIVE_INFINITY;
+				for (
+					let i = lowerIndex;
+					i <= upperIndex && i < chartData.marketLiquidity.length;
+					i++
+				) {
+					const marketLiquidity = chartData.marketLiquidity[i];
+					const marketHeightRatio = marketLiquidity / chartData.leftYMax;
+					const marketHeight = chartHeight * marketHeightRatio;
+					if (marketHeight < minMarketHeight && marketHeight > 0) {
+						minMarketHeight = marketHeight;
+					}
+				}
+
+				// If no market liquidity found, use a reasonable default (50% of chart height)
+				const maxAllowedHeight =
+					minMarketHeight !== Number.POSITIVE_INFINITY
+						? minMarketHeight
+						: chartHeight * 0.5;
+
+				positionConstraints.push({
+					position,
+					lowerIndex,
+					upperIndex,
+					relativeHeight,
+					maxAllowedHeight,
+				});
+			});
+
+			// Step 3: Calculate global scale factor
+			// Find the position that would exceed its max allowed height the most
+			// Scale all positions down by this factor to ensure none exceed their limits
+			let maxScaleFactor = 1;
+			positionConstraints.forEach((constraint) => {
+				// If we scale all positions by relativeHeight, this position would be:
+				// height = chartHeight * relativeHeight * scaleFactor
+				// We need: height <= maxAllowedHeight
+				// So: chartHeight * relativeHeight * scaleFactor <= maxAllowedHeight
+				// Therefore: scaleFactor <= maxAllowedHeight / (chartHeight * relativeHeight)
+				if (constraint.relativeHeight > 0) {
+					const requiredScaleFactor =
+						constraint.maxAllowedHeight /
+						(chartHeight * constraint.relativeHeight);
+					if (requiredScaleFactor < maxScaleFactor) {
+						maxScaleFactor = requiredScaleFactor;
+					}
+				}
+			});
+
+			// Ensure scale factor doesn't scale up (only down)
+			maxScaleFactor = Math.min(maxScaleFactor, 1);
+
+			// Ensure minimum height is met for smallest position
+			if (positionConstraints.length > 0) {
+				const minRelativeHeight = Math.min(
+					...positionConstraints.map((c) => c.relativeHeight),
+				);
+				if (minRelativeHeight > 0) {
+					const minRequiredHeight =
+						maxScaleFactor * chartHeight * minRelativeHeight;
+					if (minRequiredHeight < MIN_HEIGHT_PX) {
+						// If smallest position would be too small, adjust scale factor
+						// But still respect the max allowed height constraint
+						const adjustedScaleFactor =
+							MIN_HEIGHT_PX / (chartHeight * minRelativeHeight);
+						maxScaleFactor = Math.min(adjustedScaleFactor, maxScaleFactor);
+					}
+				}
+			}
+
+			// Step 4: Draw all positions with calculated heights
+			positionConstraints.forEach((constraint) => {
+				const { lowerIndex, upperIndex, relativeHeight } = constraint;
 
 				// Use index for getPixelForValue (Chart.js category scale accepts index)
 				const leftX = xAxis.getPixelForValue(lowerIndex);
@@ -63,90 +155,27 @@ function createOverlayPlugin(
 				const width = rightX - leftX;
 
 				if (width <= 0) {
-					console.warn(`Position ${idx}: Invalid width`, {
-						leftX,
-						rightX,
-						width,
-					});
 					return;
 				}
 
-				const chartHeight = yAxisRight.bottom - yAxisRight.top;
+				// Calculate final height: base height * scale factor
+				const baseHeight = chartHeight * relativeHeight;
+				const scaledHeight = baseHeight * maxScaleFactor;
+				const finalHeight = Math.max(scaledHeight, MIN_HEIGHT_PX);
 
-				// Calculate height based on right axis
-				// Use a more reasonable scaling: ensure positions are visible
-				const maxPositionLiquidity = Math.max(
-					...chartData.agentPositions.map((p) => p.liquidity),
-					position.liquidity,
+				// Ensure height doesn't exceed max allowed
+				const constrainedHeight = Math.min(
+					finalHeight,
+					constraint.maxAllowedHeight,
 				);
-				// Scale based on max position, not rightYMax (which might be too large)
-				const effectiveMax = Math.max(
-					chartData.rightYMax,
-					maxPositionLiquidity * 1.2,
-				);
-				const heightRatio =
-					effectiveMax > 0 ? position.liquidity / effectiveMax : 0;
-				const calculatedHeight = chartHeight * heightRatio;
 
-				// Find minimum market liquidity height in range (for constraint)
-				let minMarketHeightInRange = Number.POSITIVE_INFINITY;
-				for (
-					let i = lowerIndex;
-					i <= upperIndex && i < chartData.marketLiquidity.length;
-					i++
-				) {
-					const marketHeightRatio =
-						chartData.marketLiquidity[i] / chartData.leftYMax;
-					const marketHeight = chartHeight * marketHeightRatio;
-					if (marketHeight < minMarketHeightInRange && marketHeight > 0) {
-						minMarketHeightInRange = marketHeight;
-					}
+				// Ensure height is valid
+				if (!Number.isFinite(constrainedHeight) || constrainedHeight <= 0) {
+					return; // Skip invalid positions
 				}
 
-				// Apply constraints: calculated height, min height, max market height
-				// But prioritize visibility - ensure at least MIN_HEIGHT_PX
-				let finalHeight = Math.max(calculatedHeight, MIN_HEIGHT_PX);
-
-				// Only constrain by market height if it's reasonable (not too restrictive)
-				if (
-					minMarketHeightInRange !== Number.POSITIVE_INFINITY &&
-					minMarketHeightInRange > MIN_HEIGHT_PX
-				) {
-					finalHeight = Math.min(finalHeight, minMarketHeightInRange);
-				}
-
-				// Ensure height is valid and visible
-				if (finalHeight <= 0 || !Number.isFinite(finalHeight)) {
-					console.warn(`Position ${idx}: Invalid height, using minimum`, {
-						calculatedHeight,
-						minMarketHeightInRange,
-						liquidity: position.liquidity,
-						rightYMax: chartData.rightYMax,
-						effectiveMax,
-						heightRatio,
-					});
-					finalHeight = MIN_HEIGHT_PX; // Fallback to minimum
-				}
-
-				// Debug log for first position
-				if (idx === 0) {
-					console.log('Position rendering debug:', {
-						position: position,
-						lowerIndex,
-						upperIndex,
-						leftX,
-						rightX,
-						width,
-						chartHeight,
-						calculatedHeight,
-						finalHeight,
-						heightRatio,
-						rightYMax: chartData.rightYMax,
-						effectiveMax,
-					});
-				}
-
-				const topY = yAxisRight.bottom - finalHeight;
+				// Draw from bottom of chart area
+				const topY = yAxisLeft.bottom - constrainedHeight;
 
 				ctx.save();
 
@@ -165,71 +194,221 @@ function createOverlayPlugin(
 			});
 
 			// Draw Allowed Range Boundaries
-			const allowedLowerIndex = chartData.rawLabels.findIndex(
-				(p) => p >= chartData.allowedLowerPrice,
-			);
-			const allowedUpperIndex = chartData.rawLabels.findIndex(
-				(p) => p >= chartData.allowedUpperPrice,
-			);
+			// 数据流：后端 ticks (vault.config.tickLower/tickUpper)
+			//      → 在 liquidity-chart-utils.ts 中使用 tickToPrice 转换为价格 (allowedLowerPrice/allowedUpperPrice)
+			//      → 在这里使用价格绘制粉红色虚线
 
-			if (allowedLowerIndex !== -1 && allowedUpperIndex !== -1) {
-				const leftX = xAxis.getPixelForValue(allowedLowerIndex);
-				const rightX = xAxis.getPixelForValue(allowedUpperIndex);
+			// 获取图表的价格范围（用于计算 X 坐标）
+			const priceMin = Math.min(...chartData.rawLabels);
+			const priceMax = Math.max(...chartData.rawLabels);
+			const priceRange = priceMax - priceMin;
 
+			// 获取 X 轴的像素范围
+			const xAxisMin = xAxis.left;
+			const xAxisMax = xAxis.right;
+			const xAxisWidth = xAxisMax - xAxisMin;
+
+			// 将价格转换为 X 坐标（线性插值）
+			const priceToX = (price: number): number => {
+				if (priceRange === 0) return xAxisMin;
+				const ratio = (price - priceMin) / priceRange;
+				return xAxisMin + ratio * xAxisWidth;
+			};
+
+			// 使用已转换的价格值计算 X 坐标
+			// chartData.allowedLowerPrice 是较小的价格（左边界）
+			// chartData.allowedUpperPrice 是较大的价格（右边界）
+			const leftBoundaryPrice = chartData.allowedLowerPrice; // 较小的价格 = 左边界
+			const rightBoundaryPrice = chartData.allowedUpperPrice; // 较大的价格 = 右边界
+
+			const leftX = priceToX(leftBoundaryPrice);
+			const rightX = priceToX(rightBoundaryPrice);
+
+			// 确保 leftX < rightX（左边界在左边，右边界在右边）
+			let finalLeftX = Math.min(leftX, rightX);
+			let finalRightX = Math.max(leftX, rightX);
+
+			// 边界检查：如果计算出的 X 坐标不在图表显示范围内，则绘制在边界
+			// 如果左边界价格在图表范围外，调整到边界
+			if (leftBoundaryPrice < priceMin) {
+				finalLeftX = xAxisMin; // 画在最左边
+			} else if (leftBoundaryPrice > priceMax) {
+				finalLeftX = xAxisMax; // 画在最右边
+			}
+
+			// 如果右边界价格在图表范围外，调整到边界
+			if (rightBoundaryPrice < priceMin) {
+				finalRightX = xAxisMin; // 画在最左边
+			} else if (rightBoundaryPrice > priceMax) {
+				finalRightX = xAxisMax; // 画在最右边
+			}
+
+			// 确保 finalLeftX <= finalRightX（如果都在边界外，可能需要调整）
+			if (finalLeftX > finalRightX) {
+				// 如果两个价格都在同一侧边界外，至少保持最小宽度
+				if (leftBoundaryPrice < priceMin && rightBoundaryPrice < priceMin) {
+					// 都在左边，画在最左边
+					finalLeftX = xAxisMin;
+					finalRightX = xAxisMin + 10; // 最小宽度
+				} else if (
+					leftBoundaryPrice > priceMax &&
+					rightBoundaryPrice > priceMax
+				) {
+					// 都在右边，画在最右边
+					finalLeftX = xAxisMax - 10; // 最小宽度
+					finalRightX = xAxisMax;
+				} else {
+					// 交换以确保 left < right
+					[finalLeftX, finalRightX] = [finalRightX, finalLeftX];
+				}
+			}
+
+			// Debug: 显示数据来源和计算结果
+			console.log('🎯 Allowed Range Drawing:', {
+				数据来源: 'vault.config.tickLower/tickUpper (从后端获取)',
+				转换方法: 'BPS to Price: price = currentPrice * (1 + tick / 10000)',
+				转换后的价格: {
+					左边界价格_较小: leftBoundaryPrice,
+					右边界价格_较大: rightBoundaryPrice,
+				},
+				图表价格范围: {
+					min: priceMin,
+					max: priceMax,
+				},
+				原始计算的X坐标: {
+					leftX,
+					rightX,
+				},
+				边界检查后的X坐标: {
+					finalLeftX,
+					finalRightX,
+				},
+				是否在范围内: {
+					左边界在范围内:
+						leftBoundaryPrice >= priceMin && leftBoundaryPrice <= priceMax,
+					右边界在范围内:
+						rightBoundaryPrice >= priceMin && rightBoundaryPrice <= priceMax,
+				},
+			});
+
+			// 绘制粉红色虚线（如果价格有效）
+			if (
+				Number.isFinite(finalLeftX) &&
+				Number.isFinite(finalRightX) &&
+				finalLeftX < finalRightX
+			) {
 				ctx.save();
 
-				// Semi-transparent pink background
+				// 半透明粉红色背景
 				ctx.fillStyle = 'rgba(255, 51, 133, 0.05)';
 				ctx.fillRect(
-					leftX,
+					finalLeftX,
 					yAxisLeft.top,
-					rightX - leftX,
+					finalRightX - finalLeftX,
 					yAxisLeft.bottom - yAxisLeft.top,
 				);
 
-				// Pink dashed boundary lines
+				// 粉红色虚线边界
 				ctx.strokeStyle = 'rgba(255, 51, 133, 0.6)';
 				ctx.lineWidth = 2.5;
 				ctx.setLineDash([8, 4]);
 				ctx.shadowColor = 'rgba(255, 51, 133, 0.5)';
 				ctx.shadowBlur = 8;
 
-				// Left boundary
+				// 左边界（较小的价格，在左边）
 				ctx.beginPath();
-				ctx.moveTo(leftX, yAxisLeft.top);
-				ctx.lineTo(leftX, yAxisLeft.bottom);
+				ctx.moveTo(finalLeftX, yAxisLeft.top);
+				ctx.lineTo(finalLeftX, yAxisLeft.bottom);
 				ctx.stroke();
 
-				// Right boundary
+				// 右边界（较大的价格，在右边）
 				ctx.beginPath();
-				ctx.moveTo(rightX, yAxisLeft.top);
-				ctx.lineTo(rightX, yAxisLeft.bottom);
+				ctx.moveTo(finalRightX, yAxisLeft.top);
+				ctx.lineTo(finalRightX, yAxisLeft.bottom);
 				ctx.stroke();
 
 				ctx.setLineDash([]);
 				ctx.shadowBlur = 0;
 
-				// Price labels
+				// 格式化价格显示（人类可读的格式）
+				const formatPrice = (price: number): string => {
+					// 确保价格是正数
+					if (price <= 0 || !Number.isFinite(price)) {
+						return '$0.00';
+					}
+					// 如果价格很大，使用千位分隔符，保留 2 位小数
+					if (price >= 1000) {
+						return new Intl.NumberFormat('en-US', {
+							style: 'currency',
+							currency: 'USD',
+							minimumFractionDigits: 0,
+							maximumFractionDigits: 2,
+						}).format(price);
+					}
+					// 如果价格较小，保留更多小数位
+					return new Intl.NumberFormat('en-US', {
+						style: 'currency',
+						currency: 'USD',
+						minimumFractionDigits: 2,
+						maximumFractionDigits: 4,
+					}).format(price);
+				};
+
+				// 价格标签（显示实际价格值：左边界显示较小价格，右边界显示较大价格）
 				ctx.fillStyle = 'rgba(255, 51, 133, 0.8)';
 				ctx.font = '600 10px JetBrains Mono';
+
+				// 左边界标签：居中对齐
 				ctx.textAlign = 'center';
 				ctx.fillText(
-					`$${chartData.allowedLowerPrice.toLocaleString()}`,
-					leftX,
+					formatPrice(leftBoundaryPrice),
+					finalLeftX,
 					yAxisLeft.bottom + 9,
 				);
-				ctx.fillText(
-					`$${chartData.allowedUpperPrice.toLocaleString()}`,
-					rightX,
-					yAxisLeft.bottom + 9,
-				);
+
+				// 右边界标签：如果接近右边缘，使用右对齐避免被裁剪
+				const chartWidth = chart.chartArea.right;
+				if (finalRightX > chartWidth - 60) {
+					ctx.textAlign = 'right';
+					ctx.fillText(
+						formatPrice(rightBoundaryPrice),
+						Math.min(finalRightX, chartWidth - 5),
+						yAxisLeft.bottom + 9,
+					);
+				} else {
+					ctx.textAlign = 'center';
+					ctx.fillText(
+						formatPrice(rightBoundaryPrice),
+						finalRightX,
+						yAxisLeft.bottom + 9,
+					);
+				}
 
 				ctx.restore();
 			}
 
 			// Draw Current Price Line
 			const currentX = xAxis.getPixelForValue(chartData.currentPriceIndex);
-			const currentPrice = chartData.rawLabels[chartData.currentPriceIndex];
+			const currentPrice = chartData.currentPrice; // Use actual current price from data
+
+			console.log('🔍 Drawing current price line:', {
+				currentPrice,
+				currentPriceIndex: chartData.currentPriceIndex,
+				priceAtIndex: chartData.rawLabels[chartData.currentPriceIndex],
+				currentX,
+				fullChartData: {
+					hasCurrentPrice: 'currentPrice' in chartData,
+					currentPriceValue: chartData.currentPrice,
+					allKeys: Object.keys(chartData),
+				},
+			});
+
+			// Ensure currentPrice is valid
+			if (!currentPrice || currentPrice === 0) {
+				console.error('❌ currentPrice is 0 or invalid:', currentPrice);
+				return; // Don't draw if price is invalid
+			}
+
 			const inRange = chartData.agentPositions.some(
 				(pos) => currentPrice >= pos.tickLower && currentPrice <= pos.tickUpper,
 			);
@@ -253,12 +432,24 @@ function createOverlayPlugin(
 			ctx.shadowColor = '#4ade80';
 			ctx.shadowBlur = 10;
 			ctx.font = '700 12px JetBrains Mono';
-			ctx.textAlign = 'center';
-			ctx.fillText(
-				`$${currentPrice.toLocaleString()}`,
-				currentX,
-				yAxisLeft.top - 6,
-			);
+
+			// 如果当前价格线接近右边缘，使用右对齐避免被裁剪
+			const chartWidth = chart.chartArea.right;
+			if (currentX > chartWidth - 80) {
+				ctx.textAlign = 'right';
+				ctx.fillText(
+					`$${currentPrice.toLocaleString()}`,
+					Math.min(currentX, chartWidth - 5),
+					yAxisLeft.top - 6,
+				);
+			} else {
+				ctx.textAlign = 'center';
+				ctx.fillText(
+					`$${currentPrice.toLocaleString()}`,
+					currentX,
+					yAxisLeft.top - 6,
+				);
+			}
 			ctx.restore();
 		},
 	};
@@ -266,26 +457,57 @@ function createOverlayPlugin(
 
 export const LiquidityDistributionChart = ({
 	vault,
+	liquidityDistributionData,
+	currentPrice,
 }: LiquidityDistributionChartProps) => {
 	const chartData = useMemo(() => {
-		const data = generateLiquidityChartData(vault);
-		// Debug: Log positions data
-		if (data.agentPositions.length === 0) {
-			console.log('No agent positions - chart will show empty state');
-		} else {
-			console.log('Agent positions for chart:', data.agentPositions);
-		}
-		return data;
-	}, [vault, vault.positions.length, vault.agentStatus]);
+		// 只使用从父层传过来的 currentPrice 和 API 数据
+		console.log('🔄 Chart Data Calculation:', {
+			hasLiquidityData: !!liquidityDistributionData,
+			currentPrice,
+			vaultPositionsCount: vault.positions.length,
+			vaultId: vault.id,
+		});
 
-	const overlayPlugin = useMemo(
-		() => createOverlayPlugin(chartData),
-		[chartData],
-	);
+		if (
+			!liquidityDistributionData ||
+			currentPrice === undefined ||
+			currentPrice === null ||
+			typeof currentPrice !== 'number' ||
+			Number.isNaN(currentPrice) ||
+			currentPrice <= 0
+		) {
+			console.warn('⚠️ Chart data is null - missing required data');
+			return null;
+		}
+
+		const result = generateLiquidityChartDataFromAPI(
+			liquidityDistributionData,
+			vault,
+			currentPrice,
+		);
+
+		console.log('✅ Chart data generated:', {
+			labelsCount: result.labels.length,
+			marketLiquidityCount: result.marketLiquidity.length,
+			agentPositionsCount: result.agentPositions.length,
+			allowedLowerPrice: result.allowedLowerPrice,
+			allowedUpperPrice: result.allowedUpperPrice,
+			leftYMax: result.leftYMax,
+		});
+
+		return result;
+	}, [
+		vault,
+		vault.positions.length,
+		vault.agentStatus,
+		vault.config.tickLower,
+		vault.config.tickUpper,
+		liquidityDistributionData,
+		currentPrice,
+	]);
 
 	// Force chart re-render when vault positions or agent status changes
-	// Using key prop to ensure chart updates when data changes
-	// Include positions count, agent status, and a hash of position IDs
 	const chartKey = useMemo(() => {
 		const positionsHash =
 			vault.positions.length > 0
@@ -295,13 +517,13 @@ export const LiquidityDistributionChart = ({
 	}, [vault.id, vault.positions.length, vault.agentStatus, vault.positions]);
 
 	// Prepare Chart.js data
-	const chartJsData: ChartData<'bar'> = useMemo(
-		() => ({
-			labels: chartData.labels,
+	const chartJsData: ChartData<'bar'> = useMemo(() => {
+		const data = {
+			labels: chartData?.labels ?? [],
 			datasets: [
 				{
-					label: 'Market Liquidity',
-					data: chartData.marketLiquidity,
+					label: 'Active Liquidity',
+					data: chartData?.marketLiquidity ?? [],
 					backgroundColor: 'rgba(14, 165, 233, 0.6)',
 					borderWidth: 0,
 					barPercentage: 1.0,
@@ -309,7 +531,20 @@ export const LiquidityDistributionChart = ({
 					yAxisID: 'yLeft',
 				},
 			],
-		}),
+		};
+
+		console.log('📊 Chart.js Data Prepared:', {
+			labelsCount: data.labels.length,
+			dataPointsCount: data.datasets[0].data.length,
+			firstFewDataPoints: data.datasets[0].data.slice(0, 5),
+			hasChartData: !!chartData,
+		});
+
+		return data;
+	}, [chartData]);
+
+	const overlayPlugin = useMemo(
+		() => (chartData ? createOverlayPlugin(chartData) : null),
 		[chartData],
 	);
 
@@ -321,6 +556,9 @@ export const LiquidityDistributionChart = ({
 			layout: {
 				padding: {
 					top: 40, // Add padding at top for current price label
+					right: 20, // Add padding at right for price labels
+					bottom: 30, // Add padding at bottom for price labels
+					left: 10, // Add padding at left
 				},
 			},
 			interaction: {
@@ -342,10 +580,19 @@ export const LiquidityDistributionChart = ({
 						},
 						label: (context) => {
 							const value = context.parsed.y;
-							if (value == null) return 'Market Liquidity: $0';
-							return `Market Liquidity: $${value.toLocaleString()}`;
+							if (value == null) return 'Active Liquidity: 0';
+							const formattedValue =
+								value >= 1e18
+									? `${(value / 1e18).toFixed(2)}e18`
+									: value >= 1e15
+										? `${(value / 1e15).toFixed(2)}e15`
+										: value >= 1e12
+											? `${(value / 1e12).toFixed(2)}e12`
+											: value.toLocaleString();
+							return `Active Liquidity: ${formattedValue}`;
 						},
 						afterBody: (context) => {
+							if (!chartData) return [];
 							const price = chartData.rawLabels[context[0].dataIndex];
 							const position = chartData.agentPositions.find(
 								(pos) => price >= pos.tickLower && price <= pos.tickUpper,
@@ -353,28 +600,12 @@ export const LiquidityDistributionChart = ({
 
 							if (position) {
 								const posIndex = chartData.agentPositions.indexOf(position) + 1;
-								const maxAgentLiquidity = Math.max(
-									...chartData.agentPositions.map((p) => p.liquidity),
-								);
-								const pctOfMax = (
-									(position.liquidity / maxAgentLiquidity) *
-									100
-								).toFixed(0);
-								const marketAtPoint =
-									chartData.marketLiquidity[context[0].dataIndex];
-								const marketShare = (
-									(position.liquidity / marketAtPoint) *
-									100
-								).toFixed(1);
-
 								return [
 									'',
 									'━━━━━━━━━━━━━━━━━━━━',
 									`Agent Position #${posIndex}`,
 									`Liquidity: $${position.liquidity.toLocaleString()}`,
 									`Price Range: $${position.tickLower.toFixed(0)} - $${position.tickUpper.toFixed(0)}`,
-									`% of Max Position: ${pctOfMax}%`,
-									`% of Market: ${marketShare}%`,
 								];
 							}
 							return [];
@@ -401,41 +632,30 @@ export const LiquidityDistributionChart = ({
 				yLeft: {
 					type: 'linear',
 					position: 'left',
+					min: 0,
+					max: chartData?.leftYMax ?? 1000,
 					grid: { color: 'rgba(14, 165, 233, 0.1)' },
 					ticks: {
 						color: 'rgba(14, 165, 233, 1)',
 						font: { size: 10, family: 'JetBrains Mono' },
-						callback: (v) => `$${(Number(v) / 1000).toFixed(0)}K`,
+						// TODO: check this callback looks good or not
+						// callback: (v) => `$${(Number(v) / 1000).toFixed(0)}K`,
+						callback: (v) => {
+							const value = Number(v);
+							if (value === 0) return '0';
+							if (value >= 1e18) return `${(value / 1e18).toFixed(2)}e18`;
+							if (value >= 1e15) return `${(value / 1e15).toFixed(2)}e15`;
+							if (value >= 1e12) return `${(value / 1e12).toFixed(2)}e12`;
+							if (value >= 1e9) return `${(value / 1e9).toFixed(2)}e9`;
+							if (value >= 1e6) return `${(value / 1e6).toFixed(2)}e6`;
+							return value.toLocaleString();
+						},
 						padding: 8,
 					},
 					title: {
 						display: true,
-						text: 'Market Liquidity',
+						text: 'Active Liquidity',
 						color: 'rgba(14, 165, 233, 1)',
-						font: { size: 12, weight: 600 },
-					},
-				},
-				yRight: {
-					type: 'linear',
-					position: 'right',
-					min: 0,
-					// Use max position liquidity * 1.2 for better visibility
-					max:
-						chartData.agentPositions.length > 0
-							? Math.max(...chartData.agentPositions.map((p) => p.liquidity)) *
-								1.2
-							: chartData.rightYMax,
-					grid: { drawOnChartArea: false },
-					ticks: {
-						color: 'rgba(255, 152, 0, 1)',
-						font: { size: 10, family: 'JetBrains Mono' },
-						callback: (v) => `$${(Number(v) / 1000).toFixed(1)}K`,
-						padding: 8,
-					},
-					title: {
-						display: true,
-						text: 'Agent Positions',
-						color: 'rgba(255, 152, 0, 1)',
 						font: { size: 12, weight: 600 },
 					},
 				},
@@ -450,6 +670,18 @@ export const LiquidityDistributionChart = ({
 		}),
 		[chartData, vault.poolKey],
 	);
+
+	// Chart ref to force update
+	const chartRef = useRef<Chart<'bar'>>(null);
+
+	// Force chart update when data changes
+	useEffect(() => {
+		if (chartRef.current && chartData) {
+			console.log('🔄 Forcing chart update - data changed');
+			// Use 'none' mode for instant update without animation
+			chartRef.current.update('none');
+		}
+	}, [chartData, chartJsData]);
 
 	return (
 		<div className='space-y-4'>
@@ -467,46 +699,59 @@ export const LiquidityDistributionChart = ({
 			<Card className='border-border-default/50 bg-surface-card overflow-hidden'>
 				<div className='p-4'>
 					<div className='relative h-[500px]'>
-						<Bar
-							data={chartJsData}
-							options={chartOptions}
-							plugins={[overlayPlugin]}
-							key={chartKey}
-						/>
+						{chartData && overlayPlugin ? (
+							<Bar
+								ref={chartRef}
+								data={chartJsData}
+								options={chartOptions}
+								plugins={[overlayPlugin]}
+								key={chartKey}
+								redraw={true}
+							/>
+						) : (
+							<div className='flex items-center justify-center h-full text-text-secondary'>
+								Loading chart data...
+							</div>
+						)}
 					</div>
 
 					{/* Legend */}
-					<div className='flex justify-center gap-6 flex-wrap mt-4 text-xs'>
-						<div className='flex items-center gap-2 text-text-secondary'>
-							<div
-								className='w-5 h-3 rounded'
-								style={{ background: 'rgba(14, 165, 233, 0.6)' }}
-							/>
-							<span>Market Liquidity (Left Axis)</span>
-						</div>
-						<div className='flex items-center gap-2 text-text-secondary'>
-							<div
-								className='w-5 h-3 rounded border-2'
-								style={{
-									background: 'rgba(255, 152, 0, 0.5)',
-									borderColor: 'rgba(255, 152, 0, 1)',
-								}}
-							/>
-							<span>Agent Positions (Right Axis)</span>
-						</div>
-						<div className='flex items-center gap-2 text-text-secondary'>
-							<div className='w-5 h-[2px]' style={{ background: '#4ade80' }} />
-							<span>Current Price</span>
-						</div>
-						<div className='flex items-center gap-2 text-text-secondary'>
-							<div
-								className='w-5 h-3 rounded border-2 border-dashed'
-								style={{
-									borderColor: 'rgba(255, 51, 133, 0.6)',
-									background: 'transparent',
-								}}
-							/>
-							<span>Allowed Range</span>
+					<div className='space-y-3'>
+						<div className='flex justify-center gap-6 flex-wrap text-xs'>
+							<div className='flex items-center gap-2 text-text-secondary'>
+								<div
+									className='w-5 h-3 rounded'
+									style={{ background: 'rgba(14, 165, 233, 0.6)' }}
+								/>
+								<span>Active Liquidity (Left Axis)</span>
+							</div>
+							<div className='flex items-center gap-2 text-text-secondary'>
+								<div
+									className='w-5 h-3 rounded border-2'
+									style={{
+										background: 'rgba(255, 152, 0, 0.5)',
+										borderColor: 'rgba(255, 152, 0, 1)',
+									}}
+								/>
+								<span>Agent Positions (USD Value)</span>
+							</div>
+							<div className='flex items-center gap-2 text-text-secondary'>
+								<div
+									className='w-5 h-[2px]'
+									style={{ background: '#4ade80' }}
+								/>
+								<span>Current Price</span>
+							</div>
+							<div className='flex items-center gap-2 text-text-secondary'>
+								<div
+									className='w-5 h-3 rounded border-2 border-dashed'
+									style={{
+										borderColor: 'rgba(255, 51, 133, 0.6)',
+										background: 'transparent',
+									}}
+								/>
+								<span>Allowed Range</span>
+							</div>
 						</div>
 					</div>
 				</div>

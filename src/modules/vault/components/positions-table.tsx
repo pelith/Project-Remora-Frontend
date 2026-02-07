@@ -16,11 +16,13 @@ import { tickToPrice } from '../utils/vault-utils';
 interface PositionsTableProps {
 	positions: Position[];
 	vaultAssets?: VaultAssetsData;
+	currentPrice?: number;
 }
 
 export const PositionsTable = ({
 	positions,
 	vaultAssets,
+	currentPrice,
 }: PositionsTableProps) => {
 	const formatPrice = (price: number) => {
 		return new Intl.NumberFormat('en-US', {
@@ -59,18 +61,25 @@ export const PositionsTable = ({
 				.plus(amount1.multipliedBy(token1Price))
 				.toNumber();
 
-			// For now, inRange is set to false (will be calculated when price data is available)
-			const inRange = false;
+			// Convert ticks to prices
+			const priceLower = getPriceFromTick(pos.tickLower);
+			const priceUpper = getPriceFromTick(pos.tickUpper);
+
+			// Check if current price is within the position's price range
+			const inRange =
+				currentPrice !== undefined &&
+				currentPrice >= priceLower &&
+				currentPrice <= priceUpper;
 
 			return {
 				id: pos.tokenId,
-				priceLower: getPriceFromTick(pos.tickLower),
-				priceUpper: getPriceFromTick(pos.tickUpper),
+				priceLower,
+				priceUpper,
 				liquidityUSD,
 				inRange,
 			};
 		});
-	}, [positions, vaultAssets]);
+	}, [positions, vaultAssets, currentPrice]);
 
 	// Sort positions by tick ascending: Lowest Price -> Highest Price
 	const sortedPositions = [...displayPositions].sort(
